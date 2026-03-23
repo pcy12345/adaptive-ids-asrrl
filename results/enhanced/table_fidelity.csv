@@ -1,0 +1,4 @@
+Dataset,fidelity,coverage,opinion_rate,n_constraints,n_tested
+CSE-CIC-IDS-2018,1.0,1.0,1.0,13,2000
+UNSW-NB15,1.0,1.0,1.0,5,2000
+CIC-IDS2017,1.0,1.0,1.0,12,2000
