@@ -1183,6 +1183,7 @@ def eval_dynamic_buffer(n, epochs=10):
 
         buffer_results[ds] = {}
 
+        # --- ASRRL configurations ---
         for cfg in configs:
             res = run_asrrl_with_buffer(
                 X_train, y_train, X_test, y_test,
@@ -1210,20 +1211,85 @@ def eval_dynamic_buffer(n, epochs=10):
                   f"FPR={m['FPR']:.4f}  FNR={m['FNR']:.4f}  "
                   f"buf_final={res['final_buffer']}  th_final={res['final_threshold']:.2f}")
 
+        # --- Baseline models under same concept-drift conditions ---
+        # Reuse the phase-structured test data from the Full Dynamic run
+        # to evaluate baselines under identical temporal drift
+        full_dyn_res = run_asrrl_with_buffer(
+            X_train, y_train, X_test, y_test,
+            epochs=1, seed=42,
+            buffer_mode="dynamic", threshold_mode="dynamic",
+            fixed_buffer=20, fixed_threshold=0.5,
+        )
+        y_test_ordered = full_dyn_res["y_true"]  # reordered labels with phase structure
+
+        # Build phase-structured X_test to match y_test_ordered
+        rng = np.random.RandomState(42)
+        attack_idx = np.where(y_test == 1)[0]
+        benign_idx = np.where(y_test == 0)[0]
+        rng.shuffle(attack_idx)
+        rng.shuffle(benign_idx)
+        phase_attack_rates = [0.05, 0.25, 0.70, 0.15, 0.60, 0.08]
+        phase_len = len(y_test) // len(phase_attack_rates)
+        ordered_indices = []
+        a_ptr, b_ptr = 0, 0
+        for phase_id, rate in enumerate(phase_attack_rates):
+            n_phase = phase_len if phase_id < len(phase_attack_rates) - 1 else (len(y_test) - len(ordered_indices))
+            n_attacks_needed = int(n_phase * rate)
+            n_benign_needed = n_phase - n_attacks_needed
+            phase_indices = []
+            for _ in range(n_attacks_needed):
+                if a_ptr >= len(attack_idx):
+                    a_ptr = 0
+                    rng.shuffle(attack_idx)
+                phase_indices.append(attack_idx[a_ptr])
+                a_ptr += 1
+            for _ in range(n_benign_needed):
+                if b_ptr >= len(benign_idx):
+                    b_ptr = 0
+                    rng.shuffle(benign_idx)
+                phase_indices.append(benign_idx[b_ptr])
+                b_ptr += 1
+            rng.shuffle(phase_indices)
+            ordered_indices.extend(phase_indices)
+        ordered_indices = np.array(ordered_indices[:len(y_test)])
+        X_test_ordered = X_test[ordered_indices]
+
+        print(f"\n    --- Baseline models (same concept-drift test data) ---")
+        for bname, clf in get_baselines().items():
+            clf_copy = copy.deepcopy(clf)
+            clf_copy.fit(X_train, y_train)
+            preds = clf_copy.predict(X_test_ordered)
+            m = compute_metrics(y_test_ordered, preds)
+            buffer_results[ds][bname] = {
+                **m,
+                "buffer_sizes": [], "thresholds": [], "window_f1s": [],
+                "final_buffer": "N/A", "final_threshold": "N/A",
+                "buffer_mode": "static", "threshold_mode": "static",
+            }
+            print(f"    {bname:<40s}  F1={m['F1']:.4f}  Acc={m['Accuracy']:.4f}  "
+                  f"FPR={m['FPR']:.4f}  FNR={m['FNR']:.4f}")
+
     # Summary
+    _baseline_names = set(get_baselines().keys())
     print(f"\n{'='*80}")
-    print(f"  DYNAMIC vs FIXED — F1 COMPARISON")
+    print(f"  ASRRL DYNAMIC vs ALL — F1 COMPARISON")
     print(f"{'='*80}")
     for ds in DATASETS:
         print(f"\n  {DATASET_LABELS[ds]}:")
         dynamic_f1 = buffer_results[ds]["ASRRL Dynamic\n(Buffer+Threshold)"]["F1"]
-        for name, r in buffer_results[ds].items():
+
+        # Sort by F1 descending for clearer ranking
+        sorted_items = sorted(buffer_results[ds].items(), key=lambda x: x[1]["F1"], reverse=True)
+        for rank, (name, r) in enumerate(sorted_items, 1):
             delta = r["F1"] - dynamic_f1
-            marker = " <-- DYNAMIC" if "Dynamic" in name and "Fixed" not in name.split("\n")[0] else ""
+            clean_name = name.replace(chr(10), ' ')
+            marker = ""
             if name == "ASRRL Dynamic\n(Buffer+Threshold)":
-                marker = " <-- FULL DYNAMIC"
-            print(f"    {name.replace(chr(10), ' '):<40s}  F1={r['F1']:.4f}  "
-                  f"delta={delta:+.4f}{marker}")
+                marker = " <-- ASRRL DYNAMIC"
+            elif clean_name in _baseline_names:
+                marker = " [baseline]"
+            print(f"    #{rank:<2d} {clean_name:<40s}  F1={r['F1']:.4f}  "
+                  f"FPR={r['FPR']:.4f}  FNR={r['FNR']:.4f}  delta={delta:+.4f}{marker}")
 
     return buffer_results
 
@@ -1806,19 +1872,25 @@ def plot_dynamic_buffer(buffer_results):
 
     bdf = pd.DataFrame(rows)
 
-    fig, axes = plt.subplots(1, 3, figsize=(22, 6), sharey=True)
+    # ASRRL config names (have "Dynamic" or "Fixed" or "buf=" in them)
+    asrrl_keywords = ["Dynamic", "Fixed", "buf=", "ASRRL"]
+    baseline_names = set(get_baselines().keys())
+
+    fig, axes = plt.subplots(1, 3, figsize=(22, 8), sharey=True)
     for ax, ds in zip(axes, DATASETS):
         sub = bdf[bdf["Dataset"] == DATASET_LABELS[ds]].sort_values("F1", ascending=True)
         colors = []
         for cfg_name in sub["Configuration"]:
-            if "Dynamic" in cfg_name and "Fixed" not in cfg_name.split("(")[0]:
-                colors.append("#2980b9")
+            if "ASRRL Dynamic" in cfg_name:
+                colors.append("#2980b9")  # primary blue — full dynamic
             elif "Dynamic Buffer" in cfg_name:
                 colors.append("#3498db")
             elif "Dynamic Threshold" in cfg_name:
                 colors.append("#5dade2")
+            elif cfg_name in baseline_names:
+                colors.append("#27ae60")  # green — baseline models
             else:
-                colors.append("#e74c3c")
+                colors.append("#e74c3c")  # red — fixed ASRRL configs
 
         bars = ax.barh(range(len(sub)), sub["F1"].values, color=colors,
                        edgecolor="black", linewidth=0.5)
@@ -1826,14 +1898,14 @@ def plot_dynamic_buffer(buffer_results):
         ax.set_yticklabels(sub["Configuration"].values, fontsize=8)
         ax.set_xlabel("F1 Score")
         ax.set_title(DATASET_LABELS[ds], fontweight="bold", fontsize=11)
-        ax.set_xlim(sub["F1"].min() - 0.02, 1.005)
+        ax.set_xlim(max(0, sub["F1"].min() - 0.03), 1.005)
 
         for bar, val in zip(bars, sub["F1"].values):
             ax.text(bar.get_width() + 0.001, bar.get_y() + bar.get_height()/2,
-                    f"{val:.4f}", va="center", fontsize=8)
+                    f"{val:.4f}", va="center", fontsize=7)
 
-    fig.suptitle("Dynamic vs Fixed Buffer/Threshold — F1 Score Comparison\n"
-                 "(Blue = adaptive, Red = fixed)",
+    fig.suptitle("ASRRL Dynamic vs Fixed Configs vs Baseline Models — F1 Score\n"
+                 "(Blue = ASRRL adaptive, Red = ASRRL fixed, Green = baseline)",
                  fontweight="bold", fontsize=13, y=1.04)
     plt.tight_layout()
     p = os.path.join(OUT_DIR, "12_dynamic_buffer_f1.png")
@@ -1881,31 +1953,36 @@ def plot_dynamic_buffer(buffer_results):
     print(f"  Saved {p}")
 
     # ── Fig 14: FPR/FNR tradeoff across configs ──────────────────────────
-    fig, axes = plt.subplots(1, 3, figsize=(20, 5.5))
+    fig, axes = plt.subplots(1, 3, figsize=(22, 6))
     for ax, ds in zip(axes, DATASETS):
         for name, r in buffer_results.get(ds, {}).items():
-            marker = "o" if "Dynamic" in name and "Fixed" not in name.split("(")[0] else "x"
-            size = 120 if marker == "o" else 60
-            color = "#2980b9" if marker == "o" else "#e74c3c"
-            if "Dynamic Buffer" in name and "Fixed Threshold" in name:
-                color = "#3498db"
-                marker = "s"
-            elif "Fixed Buffer" in name and "Dynamic Threshold" in name:
-                color = "#5dade2"
-                marker = "D"
+            clean_name = name.replace("\n", " ")
+            if "ASRRL Dynamic" in clean_name:
+                marker, size, color = "*", 200, "#2980b9"
+            elif "Dynamic Buffer" in clean_name and "Fixed Threshold" in clean_name:
+                marker, size, color = "s", 100, "#3498db"
+            elif "Fixed Buffer" in clean_name and "Dynamic Threshold" in clean_name:
+                marker, size, color = "D", 100, "#5dade2"
+            elif clean_name in baseline_names:
+                marker, size, color = "^", 90, "#27ae60"
+            elif any(k in clean_name for k in ["Fixed Small", "Fixed Medium", "Fixed Large",
+                                                 "sensitive", "strict"]):
+                marker, size, color = "x", 70, "#e74c3c"
+            else:
+                marker, size, color = "x", 60, "#e74c3c"
+
             ax.scatter(r["FPR"], r["FNR"], s=size, marker=marker, color=color,
                       edgecolors="black", linewidth=0.5, zorder=5,
-                      label=name.replace("\n", " "))
+                      label=clean_name)
         ax.set_xlabel("False Positive Rate (FPR)")
         ax.set_ylabel("False Negative Rate (FNR)")
         ax.set_title(DATASET_LABELS[ds], fontweight="bold", fontsize=11)
-        ax.legend(fontsize=6, loc="upper right")
+        ax.legend(fontsize=5.5, loc="upper right")
         ax.grid(True, alpha=0.3)
-        # Ideal point annotation
         ax.annotate("Ideal\n(0,0)", xy=(0, 0), fontsize=8, color="green",
                     ha="left", va="bottom")
 
-    fig.suptitle("FPR vs FNR Tradeoff — Dynamic (blue) vs Fixed (red) Configurations",
+    fig.suptitle("FPR vs FNR Tradeoff — ASRRL Dynamic (blue) vs Fixed (red) vs Baselines (green)",
                  fontweight="bold", fontsize=13, y=1.02)
     plt.tight_layout()
     p = os.path.join(OUT_DIR, "14_buffer_fpr_fnr_tradeoff.png")
