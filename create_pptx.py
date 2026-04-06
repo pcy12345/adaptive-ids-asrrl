@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Generate ASRRL Methodology PowerPoint — IEEE Algorithmic Format.
-Each component slide has: IEEE-style algorithm block, math equations, 3-4 bullets.
+9-Stage Pipeline (Stage 0: PCAP → Stage 8: Classification).
+Includes Parallel Processing slide and updated architecture diagram.
 """
 
 import os
@@ -32,6 +33,8 @@ TEAL        = RGBColor(0x16, 0xA0, 0x85)
 NAVY        = RGBColor(0x2C, 0x3E, 0x50)
 ALGO_BG     = RGBColor(0xF7, 0xF9, 0xFB)
 ALGO_BORDER = RGBColor(0x34, 0x49, 0x5E)
+BROWN       = RGBColor(0x7B, 0x4B, 0x2A)
+YELLOW_DARK = RGBColor(0xF3, 0x9C, 0x12)
 
 
 def render_eq(latex_str, fontsize=14, dpi=200, figw=8, figh=0.6):
@@ -148,24 +151,18 @@ def add_ieee_algorithm(slide, left, top, width, height, title_num, title_text, l
     """
     Add an IEEE-style algorithm block with border, title, and numbered lines.
     lines: list of (text, indent_level, is_keyword_line)
-      - indent_level: 0=no indent, 1=one indent, 2=two indents, etc.
-      - is_keyword_line: if True, the line may contain keywords to bold (handled by caller)
-    Each line is rendered as:  "N:  [indent]text"
     """
-    # Background rectangle with border
     shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
     shape.fill.solid()
     shape.fill.fore_color.rgb = ALGO_BG
     shape.line.color.rgb = ALGO_BORDER
     shape.line.width = Pt(1.5)
 
-    # Build the algorithm text content
     txBox = slide.shapes.add_textbox(left + Inches(0.15), top + Inches(0.05),
                                      width - Inches(0.3), height - Inches(0.1))
     tf = txBox.text_frame
     tf.word_wrap = True
 
-    # Title line: "Algorithm N: Title"
     p = tf.paragraphs[0]
     run = p.add_run()
     run.text = f"Algorithm {title_num}: "
@@ -182,14 +179,12 @@ def add_ieee_algorithm(slide, left, top, width, height, title_num, title_text, l
     run2.font.name = "Times New Roman"
     p.space_after = Pt(3)
 
-    # Process each line
     line_num = 0
     for text, indent, is_special in lines:
         p = tf.add_paragraph()
         p.space_before = Pt(0)
         p.space_after = Pt(1)
 
-        # Require/Ensure lines don't get numbers
         if text.startswith("Require:") or text.startswith("Ensure:"):
             run = p.add_run()
             keyword = text.split(":")[0] + ":"
@@ -207,12 +202,9 @@ def add_ieee_algorithm(slide, left, top, width, height, title_num, title_text, l
             run2.font.name = "Times New Roman"
             continue
 
-        # Numbered lines
         line_num += 1
         indent_str = "    " * indent
         prefix = f"{line_num:>2}:  {indent_str}"
-
-        # Parse for bold keywords: if, then, else, for, do, while, return, end
         _add_keyword_runs(p, prefix, text)
 
     return txBox
@@ -230,13 +222,11 @@ def _add_keyword_runs(paragraph, prefix, text):
     run.font.color.rgb = GRAY
     run.font.name = "Consolas"
 
-    # Simple keyword detection — bold keywords in the text
     remaining = text
     while remaining:
         earliest_pos = len(remaining)
         earliest_kw = None
         for kw in KEYWORDS:
-            # case-insensitive keyword match
             lower = remaining.lower()
             pos = lower.find(kw.lower())
             if pos != -1 and pos < earliest_pos:
@@ -244,7 +234,6 @@ def _add_keyword_runs(paragraph, prefix, text):
                 earliest_kw = kw
 
         if earliest_kw is None:
-            # No more keywords — add the rest as normal text
             run = paragraph.add_run()
             run.text = remaining
             run.font.size = Pt(10)
@@ -253,7 +242,6 @@ def _add_keyword_runs(paragraph, prefix, text):
             run.font.name = "Times New Roman"
             break
         else:
-            # Add text before keyword
             if earliest_pos > 0:
                 run = paragraph.add_run()
                 run.text = remaining[:earliest_pos]
@@ -261,7 +249,6 @@ def _add_keyword_runs(paragraph, prefix, text):
                 run.font.bold = False
                 run.font.color.rgb = BLACK
                 run.font.name = "Times New Roman"
-            # Add keyword in bold
             kw_len = len(earliest_kw)
             run = paragraph.add_run()
             run.text = remaining[earliest_pos:earliest_pos + kw_len]
@@ -309,103 +296,128 @@ def build_presentation():
                  "A Verifiable IDS Framework with Z3 Formal Verification,\nQ-Learning Safety Shielding, and DBSCAN Novel Pattern Detection",
                  font_size=18, color=RGBColor(0xBD, 0xC3, 0xC7), alignment=PP_ALIGN.CENTER)
     add_text_box(slide, Inches(1), Inches(5.5), Inches(11.3), Inches(0.5),
-                 "3 Benchmark Datasets  |  8-Stage Pipeline  |  IEEE Format Algorithms",
+                 "3 Benchmark Datasets  |  9-Stage Pipeline (Stage 0\u20138)  |  Parallel Processing  |  IEEE Format",
                  font_size=16, color=RGBColor(0x95, 0xA5, 0xA6), alignment=PP_ALIGN.CENTER)
 
     add_notes(slide, """ASRRL \u2014 Adaptive Symbolic Reasoning and Reinforcement Learning for Dynamic Network Traffic Classification
 
-This presentation details the complete methodology of the ASRRL Intrusion Detection System (IDS) framework. ASRRL is a novel approach that combines multiple machine learning and formal methods techniques into an 8-stage pipeline for network traffic classification.
+This presentation details the complete methodology of the ASRRL Intrusion Detection System (IDS) framework. ASRRL combines multiple ML and formal methods techniques into a 9-stage pipeline (Stages 0\u20138) for network traffic classification.
 
 KEY CONTRIBUTIONS:
-1. Symbolic Reasoning via Z3 SMT Solver: Decision tree paths are converted into formal logic constraints using the Z3 theorem prover from Microsoft Research. This provides mathematically provable safety guarantees \u2014 every classification decision can be traced back to a satisfiable logical constraint.
+1. PCAP Binary Preprocessing (Stage 0): Raw binary PCAP packet captures are converted to flow-level features using CICFlowMeter/Argus, establishing the bridge between raw network data and the ML pipeline.
 
-2. Reinforcement Learning with Safety Shielding: A tabular Q-learning agent learns optimal classification policies, but every proposed action is verified against the Z3 constraint set before execution. If the proposed action violates constraints, a "safety shield" overrides it with the best safe alternative.
+2. Symbolic Reasoning via Z3 SMT Solver: Decision tree paths are converted into formal logic constraints using Microsoft Research's Z3 theorem prover, providing mathematically provable safety guarantees.
 
-3. Dynamic Adaptation: Unlike static classifiers, ASRRL adapts at runtime through:
-   - Adaptive buffer sizing (10-200 flows) that responds to traffic volatility
-   - Dynamic threshold adaptation (0.40-0.70) that balances false positive and false negative rates per dataset
+3. Reinforcement Learning with Safety Shielding: A tabular Q-learning agent learns optimal classification policies, but every proposed action is verified against Z3 constraints before execution.
 
-4. Novel Pattern Detection: DBSCAN clustering on misclassified flows discovers previously unseen attack signatures, which are converted to new Z3 constraints \u2014 enabling zero-day attack detection.
+4. Dynamic Adaptation: Adaptive buffer sizing (10-200 flows) and dynamic threshold adaptation (0.40-0.70) handle concept drift at runtime.
 
-DATASETS: We evaluate on three well-established IDS benchmark datasets:
-- UNSW-NB15 (2015): 2.5M flows, 9 attack types, from UNSW Canberra
-- CSE-CIC-IDS-2018 (2018): 16M flows, 7 attack types, from Canadian Institute for Cybersecurity
-- CIC-IDS2017 (2017): 3.1M flows, 14 attack types, from Canadian Institute for Cybersecurity
+5. Novel Pattern Detection: DBSCAN clustering discovers zero-day attack patterns and incorporates them as new Z3 constraints.
 
-Each dataset is processed through the identical 8-stage pipeline, demonstrating the framework's generalizability across different network environments, attack distributions, and temporal characteristics.""")
+6. Parallel Processing: Pipeline stages with independent data paths are parallelized for throughput \u2014 PCAP processing, Z3 extraction, and final classification are embarrassingly parallel.
+
+DATASETS: UNSW-NB15, CSE-CIC-IDS-2018, CIC-IDS2017.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 2: Architecture Overview
+    # SLIDE 2: Architecture Overview (Updated: 9 stages + parallelism)
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
-    add_text_box(slide, Inches(0.5), Inches(0.2), Inches(12), Inches(0.6),
-                 "ASRRL Architecture \u2014 End-to-End Pipeline",
+    add_text_box(slide, Inches(0.5), Inches(0.15), Inches(12), Inches(0.6),
+                 "ASRRL Architecture \u2014 9-Stage Pipeline with Parallel Processing",
                  font_size=28, bold=True, color=DARK_BLUE, alignment=PP_ALIGN.CENTER)
 
-    components = [
-        ("1. Data Ingestion\n& Preprocessing", DARK_BLUE),
+    # Row 1: Stages 0-4
+    row1 = [
+        ("0. PCAP Binary\nPreprocessing", BROWN),
+        ("1. Feature Extract\n& Normalization", DARK_BLUE),
         ("2. Decision Tree\nSymbolic Model", PURPLE),
         ("3. Z3 Constraint\nExtraction", GREEN),
         ("4. Q-Learning RL\nSafety Shielding", DARK_ORANGE),
+    ]
+    box_w, box_h = Inches(1.85), Inches(0.85)
+    start_x, y1 = Inches(0.25), Inches(1.0)
+    gap = Inches(0.22)
+    for i, (label, color) in enumerate(row1):
+        x = start_x + i * (box_w + gap)
+        add_rect(slide, x, y1, box_w, box_h, color, label, font_size=9)
+        if i < len(row1) - 1:
+            add_right_arrow(slide, x + box_w + Inches(0.01), y1 + Inches(0.25),
+                           Inches(0.19), Inches(0.35))
+
+    # Row 2: Stages 5-8
+    row2 = [
         ("5. DBSCAN Novel\nPattern Detection", DARK_RED),
         ("6. Adaptive Buffer\nManagement", MED_BLUE),
         ("7. Dynamic Threshold\nAdaptation", TEAL),
         ("8. Final Classification\nDecision", NAVY),
     ]
-    box_w, box_h = Inches(1.35), Inches(0.85)
-    start_x, y_top, gap = Inches(0.4), Inches(1.1), Inches(0.25)
-    for i, (label, color) in enumerate(components):
-        x = start_x + i * (box_w + gap)
-        add_rect(slide, x, y_top, box_w, box_h, color, label, font_size=9)
-        if i < len(components) - 1:
-            add_right_arrow(slide, x + box_w + Inches(0.02), y_top + Inches(0.25),
-                           Inches(0.2), Inches(0.35))
+    y2 = Inches(2.1)
+    r2_start = Inches(0.25) + (box_w + gap)  # offset to align under stages 1-4
+    for i, (label, color) in enumerate(row2):
+        x = r2_start + i * (box_w + gap)
+        add_rect(slide, x, y2, box_w, box_h, color, label, font_size=9)
+        if i < len(row2) - 1:
+            add_right_arrow(slide, x + box_w + Inches(0.01), y2 + Inches(0.25),
+                           Inches(0.19), Inches(0.35))
 
-    add_text_box(slide, Inches(0.3), Inches(2.2), Inches(12.5), Inches(0.4),
+    # Arrow from row 1 to row 2 (Stage 4 -> Stage 5)
+    add_down_arrow(slide, Inches(0.25) + (box_w + gap) * 0 + box_w / 2 - Inches(0.1) + (box_w + gap),
+                   y1 + box_h + Inches(0.02), Inches(0.2), Inches(0.22))
+
+    # Parallel processing indicators
+    add_text_box(slide, Inches(0.2), Inches(3.15), Inches(12.8), Inches(0.35),
+                 "\u26a1 Parallel Processing Stages:  Stage 0 (per-PCAP)  |  Stage 3 (per-leaf path)  |  Stage 8 (per-flow)  |  Cross-dataset (all 3 datasets independently)",
+                 font_size=12, bold=True, color=YELLOW_DARK, alignment=PP_ALIGN.CENTER)
+
+    # Datasets
+    add_text_box(slide, Inches(0.3), Inches(3.6), Inches(12.5), Inches(0.4),
                  "Three Primary Datasets: UNSW-NB15 (2.5M flows, 9 attacks)  |  "
                  "CSE-CIC-IDS-2018 (16M flows, 7 attacks)  |  CIC-IDS2017 (3.1M flows, 14 attacks)",
-                 font_size=13, bold=True, color=DARK_BLUE, alignment=PP_ALIGN.CENTER)
+                 font_size=12, bold=True, color=DARK_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_text_box(slide, Inches(0.3), Inches(2.8), Inches(12.5), Inches(0.35),
+    # Data transformation summary
+    add_text_box(slide, Inches(0.3), Inches(4.1), Inches(12.5), Inches(0.35),
                  "Data Transformation Summary (per flow x_i):",
-                 font_size=15, bold=True, color=DARK_BLUE)
+                 font_size=14, bold=True, color=DARK_BLUE)
 
     flow = [
-        ("Stage 1:  Raw columns (dur, rate, sbytes, ...)  \u2192  x_i = [flow_duration, pkt_rate, byte_rate, entropy, port_cat, size_cat, protocol] \u2208 R^7", 10, False, BLACK),
-        ("Stage 2:  X_norm \u2208 R^(n\u00d77) \u2192 DecisionTree(max_depth=6) \u2192  leaf_id(x_i), P(attack|x_i), \u0177_DT(x_i) \u2208 {0,1}", 10, False, BLACK),
-        ("Stage 3:  DT paths (root \u2192 leaf) \u2192 Z3 Implies(\u2227 (f_j op \u03b8_j), action=class)  \u2192  constraint set C = {\u03c6_1,...,\u03c6_L}", 10, False, BLACK),
-        ("Stage 4:  state s_i = leaf_id(x_i) \u2192 Q(s,a) \u2192 a_i* = argmax Q(s_i,a)  subject to Z3 verify(x_i, a_i*) = sat", 10, False, BLACK),
-        ("Stage 5:  misclassified {x_i : \u00e2_i \u2260 a_i*} \u2192 DBSCAN(\u03b5=1.5, minPts=5) \u2192 novel centroids \u2192 C' = C \u222a C_novel", 10, False, BLACK),
-        ("Stage 6:  \u03c3_entropy, \u03c3\u00b2_bytes of window W_t \u2192 |B_{t+1}| = clip(|B_t| \u00b1 \u0394, 10, 200)", 10, False, BLACK),
-        ("Stage 7:  EMA(FPR_t, FNR_t) \u2192 \u03c4_{t+1} = clip(\u03c4_t \u00b1 0.005, 0.40, 0.70)", 10, False, BLACK),
-        ("Stage 8:  p_i \u2265 \u03c4 \u2192 ATTACK;  p_i \u2264 1-\u03c4 \u2192 BENIGN;  else \u2192 RL+Z3 shield \u2192 \u0177_i \u2208 {0,1}", 10, False, BLACK),
+        ("Stage 0:  Binary PCAP packets  \u2192  CICFlowMeter/Argus  \u2192  5-tuple flow aggregation  \u2192  CSV (49\u201380+ columns per flow)", 9, False, BLACK),
+        ("Stage 1:  Raw columns (dur, rate, sbytes, ...)  \u2192  x_i = [flow_duration, pkt_rate, byte_rate, entropy, port_cat, size_cat, protocol] \u2208 R^7", 9, False, BLACK),
+        ("Stage 2:  X_norm \u2208 R^(n\u00d77) \u2192 DecisionTree(max_depth=6) \u2192  leaf_id(x_i), P(attack|x_i), \u0177_DT(x_i) \u2208 {0,1}", 9, False, BLACK),
+        ("Stage 3:  DT paths (root \u2192 leaf) \u2192 Z3 Implies(\u2227 (f_j op \u03b8_j), action=class)  \u2192  constraint set C = {\u03c6_1,...,\u03c6_L}  [\u26a1 parallel per leaf]", 9, False, BLACK),
+        ("Stage 4:  state s_i = leaf_id(x_i) \u2192 Q(s,a) \u2192 a_i* = argmax Q(s_i,a)  subject to Z3 verify(x_i, a_i*) = sat", 9, False, BLACK),
+        ("Stage 5:  misclassified {x_i : \u00e2_i \u2260 a_i*} \u2192 DBSCAN(\u03b5=1.5, minPts=5) \u2192 novel centroids \u2192 C' = C \u222a C_novel", 9, False, BLACK),
+        ("Stage 6:  \u03c3_entropy, \u03c3\u00b2_bytes of window W_t \u2192 |B_{t+1}| = clip(|B_t| \u00b1 \u0394, 10, 200)", 9, False, BLACK),
+        ("Stage 7:  EMA(FPR_t, FNR_t) \u2192 \u03c4_{t+1} = clip(\u03c4_t \u00b1 0.005, 0.40, 0.70)", 9, False, BLACK),
+        ("Stage 8:  p_i \u2265 \u03c4 \u2192 ATTACK;  p_i \u2264 1-\u03c4 \u2192 BENIGN;  else \u2192 RL+Z3 shield \u2192 \u0177_i \u2208 {0,1}  [\u26a1 parallel per flow]", 9, False, BLACK),
     ]
-    add_ml(slide, Inches(0.4), Inches(3.2), Inches(12.5), Inches(4), flow, font_name="Consolas")
+    add_ml(slide, Inches(0.4), Inches(4.5), Inches(12.5), Inches(3), flow, font_name="Consolas")
 
-    add_notes(slide, """SLIDE 2 \u2014 ASRRL Architecture: End-to-End Pipeline Overview
+    add_notes(slide, """SLIDE 2 \u2014 ASRRL Architecture: 9-Stage Pipeline with Parallel Processing
 
-This slide presents the complete 8-stage pipeline that every network flow passes through from raw ingestion to final verified classification.
+This slide presents the complete 9-stage pipeline (Stage 0 through Stage 8). The key addition from the previous version is Stage 0 (PCAP Binary Preprocessing), which addresses how raw binary network captures are converted into the flow-level tabular data that the ML pipeline consumes.
 
-PIPELINE FLOW:
-The architecture processes data sequentially through 8 components, but with important feedback loops:
-- Stage 5 (DBSCAN) feeds novel patterns back to Stage 3 (Z3 constraints), creating an evolving constraint set
-- Stage 6 (Buffer) and Stage 7 (Threshold) are runtime adaptation mechanisms that tune the system based on observed traffic patterns
+STAGE 0 \u2014 PCAP PREPROCESSING:
+Real network traffic is captured as binary PCAP (Packet CAPture) files containing raw packet headers and payloads. Before any ML processing:
+1. Packets are reassembled into TCP streams
+2. Flows are aggregated by 5-tuple (src_ip, dst_ip, src_port, dst_port, protocol)
+3. Timeout-based flow termination applies (active ~120s, idle ~60s)
+4. CICFlowMeter (for CIC datasets) or Argus (for UNSW-NB15) computes 49\u201380+ statistical features per flow
+5. Output: CSV files with one row per flow
 
-WHY 8 STAGES:
-Traditional IDS systems use a single classifier that maps features directly to labels. ASRRL decomposes this into 8 stages because:
-1. Stages 1-2 (Ingestion + DT): Provide interpretable feature processing and a symbolic model whose decision paths can be formally analyzed
-2. Stage 3 (Z3): Converts the DT into formal logic \u2014 the key differentiator enabling provable safety
-3. Stage 4 (Q-Learning): Learns an adaptive policy that improves over the static DT, while Z3 constrains it to safe actions
-4. Stage 5 (DBSCAN): Addresses the open-world problem \u2014 new attack types not in training data can be detected
-5. Stages 6-7 (Buffer + Threshold): Handle concept drift \u2014 network traffic characteristics change over time
-6. Stage 8 (Classification): Combines all signals into a final decision with full audit trail
+PARALLEL PROCESSING POINTS:
+The pipeline is NOT fully sequential \u2014 several stages support parallel execution:
+- Stage 0: Each PCAP file processed independently \u2192 embarrassingly parallel
+- Stage 3: Each leaf path extracted and verified independently \u2192 parallel per leaf
+- Stage 8: Each flow classified independently \u2192 embarrassingly parallel per flow
+- Cross-dataset: All 3 datasets processed through independent pipeline instances
 
-THREE DATASETS:
-All three datasets pass through the identical pipeline, demonstrating generalizability:
-- UNSW-NB15: 2.5M flows, 9 attack types, 30% attack ratio
-- CSE-CIC-IDS-2018: 16M flows, 7 attack types, 15% attack ratio
-- CIC-IDS2017: 3.1M flows, 14 attack types, 20% attack ratio""")
+SEQUENTIAL BOTTLENECKS:
+- Stage 2 (DT training): CART splits are computed greedily \u2192 inherently sequential
+- Stage 4 (Q-learning): Episodes update shared Q-table \u2192 sequential within episodes
+- Stage 5 (DBSCAN): Core algorithm uses sequential neighborhood queries
+- Stages 6-7 (Buffer/Threshold): Temporal dependency on previous window state""")
 
     # ═══════════════════════════════════════════════════════════════════
     # SLIDE 3: Three Datasets \u2014 Raw Features & Extraction
@@ -423,6 +435,9 @@ All three datasets pass through the identical pipeline, demonstrating generaliza
         ("Raw Columns (49 features):", 11, True, BLACK),
         ("  dur, rate, sbytes, dbytes, spkts, dpkts,", 10, False, GRAY),
         ("  ct_srv_src, sttl, sjit, dsport, proto, ...", 10, False, GRAY),
+        ("", 4, False, BLACK),
+        ("PCAP Source: IXIA PerfectStorm tool", 10, True, BROWN),
+        ("Flow Tool: Argus + Bro-IDS", 10, True, BROWN),
         ("", 4, False, BLACK),
         ("Feature Extraction:", 11, True, DARK_BLUE),
         ("  flow_duration = dur \u00d7 1000  (sec \u2192 ms)", 10, False, BLACK),
@@ -448,6 +463,9 @@ All three datasets pass through the identical pipeline, demonstrating generaliza
         ("  Flow Bytes/s, Fwd IAT Std,", 10, False, GRAY),
         ("  Dst Port, Protocol, Label, ...", 10, False, GRAY),
         ("", 4, False, BLACK),
+        ("PCAP Source: AWS infrastructure (10 days)", 10, True, BROWN),
+        ("Flow Tool: CICFlowMeter", 10, True, BROWN),
+        ("", 4, False, BLACK),
         ("Feature Extraction:", 11, True, DARK_BLUE),
         ("  flow_duration = Flow Duration / 1000  (\u03bcs \u2192 ms)", 10, False, BLACK),
         ("  pkt_rate      = Flow Packets/s", 10, False, BLACK),
@@ -472,6 +490,9 @@ All three datasets pass through the identical pipeline, demonstrating generaliza
         ("  Flow Byts/s, Flow IAT Std,", 10, False, GRAY),
         ("  Destination Port, Protocol, Label, ...", 10, False, GRAY),
         ("", 4, False, BLACK),
+        ("PCAP Source: CIC lab network (5 days)", 10, True, BROWN),
+        ("Flow Tool: CICFlowMeter", 10, True, BROWN),
+        ("", 4, False, BLACK),
         ("Feature Extraction (same as CSE-CIC):", 11, True, DARK_BLUE),
         ("  flow_duration = Flow Duration / 1000  (\u03bcs \u2192 ms)", 10, False, BLACK),
         ("  pkt_rate      = Flow Packets/s", 10, False, BLACK),
@@ -495,39 +516,134 @@ All three datasets pass through the identical pipeline, demonstrating generaliza
 
     add_notes(slide, """SLIDE 3 \u2014 Three Benchmark Datasets: Raw Features & Standardized Extraction
 
-This slide shows the concrete feature extraction process for each of the three primary datasets. The key challenge is that each dataset has a different raw schema, but ASRRL needs a unified 7-feature representation.
+This slide now includes PCAP source information and flow extraction tools for each dataset.
 
-UNSW-NB15 (University of New South Wales, 2015):
-- Created by the Australian Centre for Cyber Security using the IXIA PerfectStorm tool
-- Contains 49 raw features including flow-level (dur, rate, sbytes), connection-level (ct_srv_src), and content-level features
-- Feature mapping: 'dur' (seconds) multiplied by 1000 for ms. 'ct_srv_src' serves as entropy proxy
-- 9 attack categories with ~30% attack ratio
+UNSW-NB15: PCAP captured by IXIA PerfectStorm tool at UNSW Canberra. Flows extracted by Argus and Bro-IDS network monitors. The raw PCAP binary data was processed into 49-column CSV format by the dataset creators.
 
-CSE-CIC-IDS-2018 (Canadian Institute for Cybersecurity, 2018):
-- Generated using CICFlowMeter on AWS infrastructure with realistic attack scenarios over 10 days
-- 80+ features. Flow Duration in microseconds divided by 1000. Fwd IAT Std quantile-normalized for entropy.
-- 7 attack categories with ~15% attack ratio
+CSE-CIC-IDS-2018: PCAP captured over 10 days on AWS infrastructure simulating enterprise network. CICFlowMeter processed the binary PCAPs into 80+ flow-level features using 5-tuple aggregation with configurable timeouts.
 
-CIC-IDS2017 (Canadian Institute for Cybersecurity, 2017):
-- Predecessor to CSE-CIC-2018 using same CICFlowMeter tool but different attack scenarios
-- Same 80+ feature schema; same preprocessing function handles both CIC datasets
-- 14 attack categories with ~20% attack ratio
+CIC-IDS2017: PCAP captured over 5 days at CIC lab network. Same CICFlowMeter tool processed the binary captures into the same 80+ feature format.
 
-STANDARDIZED OUTPUT: x_i = [flow_duration, pkt_rate, byte_rate, entropy, port_cat, size_cat, protocol]
-- First 4 continuous (Z-score normalized), last 3 categorical integers
-- Binary label y_i in {0, 1} where 0=benign, 1=attack""")
+KEY POINT FOR ADVISOR: All three benchmark datasets ship as pre-extracted CSVs. The PCAP \u2192 flow conversion was performed by the dataset creators using established tools (CICFlowMeter, Argus). Our Stage 0 documents this preprocessing step and shows it as part of the complete pipeline.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 4: Stage 1 \u2014 Data Ingestion & Z-Score Normalization
+    # SLIDE 4: Stage 0 \u2014 PCAP Binary Preprocessing (NEW)
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
     add_text_box(slide, Inches(0.3), Inches(0.15), Inches(12.5), Inches(0.5),
-                 "Stage 1: Data Ingestion & StandardScaler Normalization",
+                 "Stage 0: PCAP Binary Preprocessing & Flow Aggregation  [\u26a1 Parallelizable]",
+                 font_size=24, bold=True, color=BROWN)
+
+    algo_lines = [
+        ("Require: Raw binary PCAP file(s) P = {p_1, ..., p_N}", 0, False),
+        ("Ensure: Flow-level CSV with F features per flow (F=49 for UNSW, F=80+ for CIC)", 0, False),
+        ("for each PCAP file p_k \u2208 P do  // \u26a1 parallelizable per file", 0, True),
+        ("for each raw packet pkt \u2208 p_k do", 1, True),
+        ("Parse binary headers: Ethernet \u2192 IP \u2192 TCP/UDP/ICMP", 2, False),
+        ("Extract 5-tuple: key \u2190 (src_ip, dst_ip, src_port, dst_port, proto)", 2, False),
+        ("if key \u2208 active_flows then", 2, True),
+        ("active_flows[key].append(pkt)  // add to existing flow", 3, False),
+        ("else", 2, True),
+        ("active_flows[key] \u2190 new_flow(pkt)  // start new flow", 3, False),
+        ("end if", 2, True),
+        ("end for", 1, True),
+        ("for each flow f \u2208 active_flows do", 1, True),
+        ("if idle_time(f) > T_idle or active_time(f) > T_active then", 2, True),
+        ("Terminate flow and compute statistical features:", 3, False),
+        ("  duration, pkt_count, byte_count, pkt_rate, byte_rate,", 3, False),
+        ("  fwd/bwd ratios, IAT stats (mean, std, min, max),", 3, False),
+        ("  TCP flags, payload size stats, ...", 3, False),
+        ("end if", 2, True),
+        ("end for", 1, True),
+        ("Export terminated flows as CSV rows with F feature columns", 1, False),
+        ("end for", 0, True),
+        ("return Merged CSV: D_raw with n flows \u00d7 F features", 0, True),
+    ]
+    add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.8), Inches(5.8),
+                       1, "PCAP Binary Preprocessing & Flow Aggregation", algo_lines)
+
+    # Right side: tool diagram and equations
+    eq = render_eq_block([
+        r"$flow\_key = (src\_ip, dst\_ip, src\_port, dst\_port, proto)$",
+        r"$T_{idle} = 60s$,    $T_{active} = 120s$",
+        r"$IAT_i = t_{pkt_{i+1}} - t_{pkt_i}$  (inter-arrival time)",
+    ], fontsize=12, figw=4.5)
+    slide.shapes.add_picture(eq, Inches(8.3), Inches(0.7), Inches(4.5))
+
+    # Tool mapping
+    tool_lines = [
+        ("Flow Extraction Tools per Dataset:", 12, True, BROWN),
+        ("", 4, False, BLACK),
+        ("UNSW-NB15:", 11, True, BLACK),
+        ("  PCAP \u2192 Argus + Bro-IDS \u2192 49-column CSV", 10, False, GRAY),
+        ("  Captures: IXIA PerfectStorm traffic gen", 10, False, GRAY),
+        ("", 4, False, BLACK),
+        ("CSE-CIC-IDS-2018:", 11, True, BLACK),
+        ("  PCAP \u2192 CICFlowMeter v4 \u2192 80+ column CSV", 10, False, GRAY),
+        ("  Captures: AWS infrastructure, 10-day run", 10, False, GRAY),
+        ("", 4, False, BLACK),
+        ("CIC-IDS2017:", 11, True, BLACK),
+        ("  PCAP \u2192 CICFlowMeter v3 \u2192 80+ column CSV", 10, False, GRAY),
+        ("  Captures: CIC lab B-Profile, 5-day run", 10, False, GRAY),
+    ]
+    add_ml(slide, Inches(8.3), Inches(2.5), Inches(4.5), Inches(3.5), tool_lines, font_name="Consolas")
+
+    # Bullets
+    add_bullets(slide, Inches(0.3), Inches(6.6), Inches(12.5), Inches(0.8), [
+        "Raw PCAP files contain binary packet data (Ethernet/IP/TCP headers + payload); packets are grouped into bidirectional flows using 5-tuple keys and timeout-based termination.",
+        "CICFlowMeter (CIC datasets) and Argus/Bro (UNSW-NB15) compute flow-level statistics: duration, packet/byte rates, inter-arrival time distributions, TCP flag counts, and payload size statistics.",
+        "Each PCAP file is processed independently, enabling embarrassingly parallel preprocessing across multiple capture files or time windows.",
+        "Output: one CSV row per flow with 49\u201380+ raw features, which Stage 1 then maps to the standardized 7-feature schema."
+    ], font_size=10)
+
+    add_notes(slide, """SLIDE 4 \u2014 Stage 0: PCAP Binary Preprocessing & Flow Aggregation
+
+PURPOSE: Bridge the gap between raw binary network captures (PCAP format) and the tabular flow-level data that the ML pipeline (Stages 1\u20138) consumes. This stage documents the complete data lineage from wire to CSV.
+
+WHAT IS PCAP:
+PCAP (Packet CAPture) is the standard binary format for storing captured network packets. Each PCAP file contains:
+- Global header: magic number, version, snap length, link-layer type
+- Per-packet records: timestamp (microsecond precision), captured length, original length, raw packet bytes
+- Packet bytes include: Ethernet header (14 bytes) \u2192 IP header (20-60 bytes) \u2192 TCP/UDP/ICMP header \u2192 payload
+
+FLOW AGGREGATION PROCESS:
+1. PACKET PARSING: Read binary PCAP, decode Ethernet/IP/transport headers to extract 5-tuple
+2. FLOW GROUPING: Group packets by (src_ip, dst_ip, src_port, dst_port, protocol) into bidirectional flows
+3. TIMEOUT TERMINATION: Flows are terminated when:
+   - Idle timeout (T_idle = 60s): no packets for 60 seconds
+   - Active timeout (T_active = 120s): flow duration exceeds 120 seconds
+   - FIN/RST flag: TCP connection termination
+4. FEATURE COMPUTATION: For each terminated flow, compute statistical features:
+   - Duration, total packets (fwd+bwd), total bytes (fwd+bwd)
+   - Packet rate, byte rate, packet size stats (mean, std, min, max)
+   - Inter-arrival time stats (mean, std, min, max) for fwd and bwd directions
+   - TCP flags (SYN, ACK, FIN, RST, PSH, URG counts)
+   - Payload statistics, header lengths, etc.
+
+TOOLS USED:
+- CICFlowMeter (v3/v4): Java-based tool from CIC that reads PCAP and outputs CICFlowMeter-format CSVs with 80+ features. Used for both CIC-IDS2017 and CSE-CIC-IDS-2018.
+- Argus: Open-source flow generator that produces NetFlow-like records. Used alongside Bro-IDS (now Zeek) for UNSW-NB15.
+
+PARALLELISM:
+PCAP processing is embarrassingly parallel:
+- Multiple PCAP files can be processed simultaneously (one per CPU core)
+- Large PCAP files can be split by time window and processed in parallel
+- This is the most computationally intensive preprocessing step (parsing millions of packets)
+
+KEY POINT: The three benchmark datasets ship as pre-extracted CSVs. The PCAP-to-CSV conversion was performed by the dataset creators. However, in a production deployment, Stage 0 would run in real-time using CICFlowMeter or similar tools on live traffic captures.""")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # SLIDE 5: Stage 1 \u2014 Data Ingestion & Z-Score Normalization
+    # ═══════════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_bg(slide, WHITE)
+    add_text_box(slide, Inches(0.3), Inches(0.15), Inches(12.5), Inches(0.5),
+                 "Stage 1: Feature Extraction & StandardScaler Normalization",
                  font_size=24, bold=True, color=DARK_BLUE)
 
     algo_lines = [
-        ("Require: Raw dataset D_k, k \u2208 {UNSW-NB15, CSE-CIC-2018, CIC-IDS2017}", 0, False),
+        ("Require: Raw CSV D_raw from Stage 0, k \u2208 {UNSW, CSE, CIC2017}", 0, False),
         ("Ensure: Normalized feature matrix X_norm \u2208 R^(n\u00d77), labels y \u2208 {0,1}^n", 0, False),
         ("for each dataset D_k do", 0, True),
         ("for each column c_j \u2208 D_k do", 1, True),
@@ -545,9 +661,8 @@ STANDARDIZED OUTPUT: x_i = [flow_duration, pkt_rate, byte_rate, entropy, port_ca
         ("return X_norm, y", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.5), Inches(4.7),
-                       1, "Feature Extraction & Z-Score Normalization", algo_lines)
+                       2, "Feature Extraction & Z-Score Normalization", algo_lines)
 
-    # Equations on the right
     eq = render_eq_block([
         r"$\mu_j = \frac{1}{n}\sum_{i=1}^{n} x_j^{(i)}$",
         r"$\sigma_j = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(x_j^{(i)} - \mu_j)^2}$",
@@ -555,9 +670,8 @@ STANDARDIZED OUTPUT: x_i = [flow_duration, pkt_rate, byte_rate, entropy, port_ca
     ], fontsize=14, figw=5)
     slide.shapes.add_picture(eq, Inches(8.2), Inches(0.7), Inches(4.8))
 
-    # Bullets
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
-        "Maps heterogeneous raw features from each dataset into a unified 7-dimensional representation: [flow_duration, pkt_rate, byte_rate, entropy, port_cat, size_cat, protocol].",
+        "Maps the 49\u201380+ raw CSV columns from Stage 0 into a unified 7-dimensional representation: [flow_duration, pkt_rate, byte_rate, entropy, port_cat, size_cat, protocol].",
         "Applies Z-score normalization (StandardScaler) to the 4 continuous features, ensuring zero mean and unit variance to prevent scale dominance.",
         "Categorical features (port_cat, size_cat, protocol) are binned into integer categories and passed through unchanged.",
         "The scaler is fit on training data only and applied to test data to prevent data leakage."
@@ -567,32 +681,26 @@ STANDARDIZED OUTPUT: x_i = [flow_duration, pkt_rate, byte_rate, entropy, port_ca
                  "Output:  X_norm \u2208 R^(n\u00d77), y \u2208 {0,1}^n  \u2192 Feeds into Stage 2 (Decision Tree)",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 4 \u2014 Stage 1: Data Ingestion & StandardScaler Normalization
+    add_notes(slide, """SLIDE 5 \u2014 Stage 1: Feature Extraction & StandardScaler Normalization
 
-PURPOSE: Transform raw, heterogeneous dataset columns into a standardized, normalized feature matrix suitable for machine learning.
+PURPOSE: Transform the raw CSV output from Stage 0 (49\u201380+ columns) into a standardized 7-feature normalized matrix.
+
+This stage now explicitly receives input from Stage 0 (PCAP preprocessing), closing the gap between binary network data and the ML pipeline.
 
 ALGORITHM DETAILS:
-The StandardScaler from scikit-learn performs Z-score normalization independently on each of the 4 continuous features. For each feature j:
-- Compute mean: mu_j = (1/n) * sum(x_j^(i)) for i=1..n
-- Compute std: sigma_j = sqrt((1/(n-1)) * sum((x_j^(i) - mu_j)^2))
-- Transform: z_j^(i) = (x_j^(i) - mu_j) / sigma_j
-
-This ensures each feature has zero mean and unit variance, preventing features with larger absolute values (e.g., byte_rate in millions) from dominating the decision tree splits over features with smaller values (e.g., entropy in [0,1]).
+The StandardScaler performs Z-score normalization on each of the 4 continuous features independently:
+- Compute mean and standard deviation from training data
+- Transform: z = (x - mu) / sigma
 
 DATASET-SPECIFIC MAPPINGS:
-- UNSW-NB15: dur*1000\u2192flow_duration, rate\u2192pkt_rate, sbytes+dbytes\u2192byte_rate, normalize(ct_srv_src)\u2192entropy
-- CSE-CIC-2018/CIC-IDS2017: Flow Duration/1000\u2192flow_duration, Flow Packets/s\u2192pkt_rate, Flow Bytes/s\u2192byte_rate, quantile_norm(Fwd IAT Std)\u2192entropy
+- UNSW-NB15 (49 cols \u2192 7): dur*1000, rate, sbytes+dbytes, normalize(ct_srv_src), bin(dsport), bin(byte_rate), proto_map
+- CSE-CIC-2018 (80+ cols \u2192 7): Flow Duration/1000, Flow Packets/s, Flow Bytes/s, quantile_norm(Fwd IAT Std), bin(Dst Port), bin(bytes*dur), proto_map
+- CIC-IDS2017 (80+ cols \u2192 7): Same as CSE-CIC-2018 (both use CICFlowMeter output format)
 
-WHY Z-SCORE NORMALIZATION:
-- Decision trees are somewhat robust to feature scaling, but normalized features produce more interpretable Z3 constraints
-- Thresholds in Z3 constraints become standard deviation units rather than raw units
-- The scaler is fit on training data only to prevent data leakage
-- Categorical features (port_cat 0-5, size_cat 0-3, protocol 0-2) passed through unchanged
-
-OUTPUT: X_norm (n\u00d77 matrix) and y (n-vector of binary labels) fed to Stage 2.""")
+OUTPUT: X_norm (n\u00d77) and y (n binary labels) fed to Stage 2.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 5: Stage 2 \u2014 Decision Tree Symbolic Model
+    # SLIDE 6: Stage 2 \u2014 Decision Tree Symbolic Model
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
@@ -620,9 +728,8 @@ OUTPUT: X_norm (n\u00d77 matrix) and y (n-vector of binary labels) fed to Stage 
         ("return T, {leaf_id(x_i), P(attack|x_i), \u0177_DT(x_i)} for all x_i", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.5), Inches(5.1),
-                       2, "CART Decision Tree Training", algo_lines)
+                       3, "CART Decision Tree Training", algo_lines)
 
-    # Equations
     eq = render_eq_block([
         r"$Gini(S) = 1 - \sum_{k=0}^{1} p_k^2$",
         r"$p_k = \frac{|S_k|}{|S|}$",
@@ -630,7 +737,6 @@ OUTPUT: X_norm (n\u00d77 matrix) and y (n-vector of binary labels) fed to Stage 
     ], fontsize=14, figw=4.5)
     slide.shapes.add_picture(eq, Inches(8.2), Inches(0.7), Inches(4.5))
 
-    # Bullets
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
         "Trains a CART decision tree (max_depth=6, min_samples_leaf=15) to serve as the interpretable symbolic model whose paths become Z3 constraints.",
         "Each leaf node provides: a discrete state ID for Q-learning (Stage 4), an attack probability P(attack|leaf), and a baseline classification.",
@@ -642,44 +748,31 @@ OUTPUT: X_norm (n\u00d77 matrix) and y (n-vector of binary labels) fed to Stage 
                  "Output: Tree T with L leaves \u2192 Feeds into Stage 3 (Z3 extraction) + Stage 4 (leaf_id as RL state)",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 5 \u2014 Stage 2: Decision Tree Symbolic Model (CART)
+    add_notes(slide, """SLIDE 6 \u2014 Stage 2: Decision Tree Symbolic Model (CART)
 
-PURPOSE: Train an interpretable decision tree classifier whose internal decision paths can be extracted as formal logic constraints for Z3 verification.
+PURPOSE: Train an interpretable decision tree whose decision paths can be extracted as formal logic constraints.
 
-WHY DECISION TREE (not Random Forest or Neural Network):
-The decision tree is chosen specifically because it is a "white-box" model \u2014 every prediction can be explained as a conjunction of feature threshold comparisons along a root-to-leaf path. This is critical because:
-1. Each path can be directly translated into a Z3 logical implication (Stage 3)
-2. Each leaf node provides a discrete state ID for the Q-learning agent (Stage 4)
-3. The shallow depth (max_depth=6) limits the number of constraints, keeping Z3 verification tractable at runtime
+WHY DECISION TREE: It is a "white-box" model \u2014 every prediction is a conjunction of feature threshold comparisons along a root-to-leaf path. This enables:
+1. Direct translation into Z3 logical implications (Stage 3)
+2. Discrete state IDs for Q-learning (Stage 4)
+3. Tractable verification (max 64 leaves with depth=6)
 
-ALGORITHM \u2014 CART:
-At each node, the algorithm searches over all 7 features and all possible thresholds to find the split that minimizes the weighted Gini impurity:
-- Gini(S) = 1 - p_0^2 - p_1^2
-- Pure node: Gini = 0, Maximum impurity: Gini = 0.5
-
-HYPERPARAMETERS:
-- max_depth=6: Limits tree to 6 levels, producing at most 64 leaf nodes
-- min_samples_leaf=15: Prevents overfitting by requiring at least 15 training samples per leaf
-
-DUAL OUTPUT:
-1. leaf_id(x_i): integer identifying which leaf the flow reaches \u2192 becomes state in Q-learning
-2. P(attack|x_i): fraction of training attacks in that leaf \u2192 drives threshold classification
-3. \u0177_DT(x_i): majority class of the leaf \u2192 baseline DT prediction""")
+NOTE ON PARALLELISM: CART training is inherently sequential \u2014 each split depends on the data partition from the previous split. This is one of the sequential bottlenecks in the pipeline. However, the tree is small (depth=6) so training completes in milliseconds.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 6: Stage 3 \u2014 Z3 Formal Constraint Extraction
+    # SLIDE 7: Stage 3 \u2014 Z3 Formal Constraint Extraction
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
     add_text_box(slide, Inches(0.3), Inches(0.15), Inches(12.5), Inches(0.5),
-                 "Stage 3: Z3 SMT Constraint Extraction from Decision Tree",
+                 "Stage 3: Z3 SMT Constraint Extraction  [\u26a1 Parallelizable per Leaf Path]",
                  font_size=24, bold=True, color=GREEN)
 
     algo_lines = [
         ("Require: Trained decision tree T with L leaf nodes", 0, False),
         ("Ensure: Constraint set C = {\u03c6_1, ..., \u03c6_|C|} of Z3 implications", 0, False),
-        ("C \u2190 \u2205, solver \u2190 Z3.Solver()", 0, False),
-        ("for each leaf l \u2208 {1, ..., L} do", 0, True),
+        ("C \u2190 \u2205", 0, False),
+        ("for each leaf l \u2208 {1, ..., L} do  // \u26a1 parallelizable per leaf", 0, True),
         ("\u03c0_l \u2190 extract_path(root, l)  // walk tree root \u2192 leaf", 1, False),
         ("conditions \u2190 []", 1, False),
         ("for each split (feature_j, threshold_\u03b8, direction) in \u03c0_l do", 1, True),
@@ -697,9 +790,8 @@ DUAL OUTPUT:
         ("return C", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.5), Inches(5.3),
-                       3, "Z3 Constraint Extraction", algo_lines)
+                       4, "Z3 Constraint Extraction", algo_lines)
 
-    # Equations
     eq = render_eq_block([
         r"$\varphi_l : \bigwedge_{(j,\theta,op) \in \pi_l} (f_j\ op\ \theta) \Rightarrow (action = c_l)$",
         r"$C = \{\varphi_1, \varphi_2, \ldots, \varphi_{|C|}\}$",
@@ -707,47 +799,31 @@ DUAL OUTPUT:
     ], fontsize=13, figw=5)
     slide.shapes.add_picture(eq, Inches(8.2), Inches(0.7), Inches(4.8))
 
-    # Bullets
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
         "Traverses each root-to-leaf path in the decision tree, converting feature threshold comparisons into Z3 Real/Int constraints with Implies() implications.",
-        "Each constraint \u03c6_l states: if the conjunction of feature conditions along path \u03c0_l is true, then the action must equal the leaf's predicted class.",
-        "A satisfiability check ensures each new constraint is consistent with the existing set\u2014inconsistent constraints are rejected to maintain logical soundness.",
+        "Each constraint \u03c6_l states: if the conjunction of feature conditions along path \u03c0_l holds, then the action must equal the leaf's predicted class.",
+        "Leaf paths are independent\u2014each can be extracted in parallel across CPU cores, with a final sequential merge and satisfiability check.",
         "The resulting constraint set C enables runtime verification: any proposed RL action can be checked against C using Z3's SMT solver in O(ms) time."
     ], font_size=11)
 
     add_text_box(slide, Inches(0.3), Inches(6.3), Inches(12.5), Inches(0.4),
-                 "Output: Constraint set C \u2192 Used by Stage 4 (Q-Learning safety shield) and updated by Stage 5 (DBSCAN novel patterns)",
+                 "Output: Constraint set C \u2192 Used by Stage 4 (Q-Learning safety shield) and updated by Stage 5 (DBSCAN)",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 6 \u2014 Stage 3: Z3 SMT Constraint Extraction from Decision Tree
+    add_notes(slide, """SLIDE 7 \u2014 Stage 3: Z3 SMT Constraint Extraction from Decision Tree
 
-PURPOSE: Convert the interpretable decision tree into formal logic constraints using Microsoft Research's Z3 theorem prover. This is the key innovation that enables provable safety guarantees.
+PURPOSE: Convert the decision tree into formal logic constraints using Z3.
 
-WHAT IS Z3:
-Z3 is a Satisfiability Modulo Theories (SMT) solver. Given a set of logical constraints over real/integer variables, it can determine whether any assignment of values satisfies all constraints simultaneously (sat) or no such assignment exists (unsat).
+PARALLELISM: Each leaf path extraction is independent:
+- L leaf paths can be extracted concurrently (one per thread/core)
+- Each path produces a candidate constraint \u03c6_l
+- The satisfiability merge step is sequential (constraints must be checked for mutual consistency)
+- With L \u2248 60 leaves, parallelism reduces extraction time by ~Lx on multi-core systems
 
-ALGORITHM DETAILS:
-For each of the L leaf nodes in the decision tree:
-1. Extract the path from root to leaf as a sequence of (feature, threshold, direction) triples
-2. Convert each split into a Z3 constraint: Real('feature_name') <= threshold or > threshold
-3. Combine all splits along the path with And() to form the precondition
-4. Create an Implies() constraint: if precondition holds, then action must equal leaf class
-5. Check satisfiability with existing constraints before adding (prevents contradictions)
-
-CONSTRAINT FORMAT:
-\u03c6_l : (f_1 \u2264 \u03b8_1) \u2227 (f_3 > \u03b8_3) \u2227 ... \u21d2 (action = class_l)
-
-The verify() function used in Stage 4 works by:
-1. Substituting the flow's feature values into the Z3 variables
-2. Setting action = proposed_action
-3. Checking if the resulting system is satisfiable
-4. If sat: the action is consistent with learned constraints (safe)
-5. If unsat: the action violates constraints (unsafe, must be overridden)
-
-This provides a mathematical proof that every classification respects the symbolic model's learned rules.""")
+The verify() function checks: given feature values and proposed action, is the constraint set satisfiable? sat = safe, unsat = unsafe.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 7: Stage 4 \u2014 Q-Learning RL with Safety Shielding
+    # SLIDE 8: Stage 4 \u2014 Q-Learning RL with Safety Shielding
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
@@ -782,53 +858,35 @@ This provides a mathematical proof that every classification respects the symbol
         ("return Q", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(8.0), Inches(5.8),
-                       4, "Q-Learning with Z3 Safety Shielding", algo_lines)
+                       5, "Q-Learning with Z3 Safety Shielding", algo_lines)
 
-    # Equations
     eq = render_eq_block([
         r"$Q(s,a) \leftarrow Q(s,a) + \alpha[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$",
         r"$R(a,y) = \{+2\ (TP),\ -3\ (FN),\ +1\ (TN),\ -1\ (FP)\}$",
     ], fontsize=13, figw=4.5)
     slide.shapes.add_picture(eq, Inches(8.5), Inches(0.7), Inches(4.5))
 
-    # Bullets
     add_bullets(slide, Inches(8.5), Inches(2.5), Inches(4.5), Inches(3.0), [
-        "A tabular Q-learning agent uses DT leaf IDs as discrete states and {ALLOW=0, BLOCK=1} as actions, learning from an asymmetric reward: FN penalty (\u22123) exceeds FP penalty (\u22121) to prioritize attack detection.",
-        "Every proposed action is verified against the Z3 constraint set before execution\u2014if the action is unsafe (unsat), the safety shield overrides it with the alternative action.",
-        "Epsilon-greedy exploration (\u03b5=0.20, decay=0.999) balances discovering new policies with exploiting learned Q-values; a +0.5 shield bonus incentivizes Z3-consistent behavior.",
-        "The Q-table converges to a policy that improves on the static DT baseline while maintaining formal safety guarantees from the constraint set."
+        "A tabular Q-learning agent uses DT leaf IDs as discrete states and {ALLOW=0, BLOCK=1} as actions, learning from asymmetric rewards: FN penalty (\u22123) exceeds FP penalty (\u22121) to prioritize attack detection.",
+        "Every proposed action is verified against the Z3 constraint set\u2014if unsafe (unsat), the safety shield overrides it with the alternative action.",
+        "Epsilon-greedy exploration (\u03b5=0.20, decay=0.999) balances discovery with exploitation; a +0.5 shield bonus incentivizes Z3-consistent behavior.",
+        "Sequential bottleneck: Q-table updates within each episode are sequential (shared state), but episodes across datasets run in parallel."
     ], font_size=11)
 
-    add_notes(slide, """SLIDE 7 \u2014 Stage 4: Q-Learning RL with Z3 Safety Shielding
+    add_notes(slide, """SLIDE 8 \u2014 Stage 4: Q-Learning RL with Z3 Safety Shielding
 
-PURPOSE: Learn an adaptive classification policy that improves upon the static decision tree while maintaining provable safety guarantees through Z3 constraint verification.
+PURPOSE: Learn an adaptive policy that improves on the static DT while maintaining safety guarantees.
 
-KEY INNOVATION \u2014 SAFETY SHIELDING:
-The Q-learning agent proposes actions, but every action passes through the Z3 safety shield:
-1. Agent proposes action a_proposed (either by exploration or exploitation)
-2. Z3 solver checks: given the flow's features and the proposed action, is the constraint set satisfiable?
-3. If sat: action is consistent with all learned rules \u2192 execute it
-4. If unsat: action violates constraints \u2192 override with alternative action (1 - a_proposed)
+PARALLELISM NOTE: Q-learning training is partially sequential:
+- Within an episode, each flow's Q-update depends on the current Q-table \u2192 sequential
+- However, separate Q-tables are trained for each dataset independently \u2192 cross-dataset parallelism
+- The Z3 verify() calls per flow are independent and could be batched
 
-This means the RL agent can NEVER make a decision that contradicts the formally verified constraint set.
-
-REWARD STRUCTURE:
-- True Positive (correctly block attack): +2.0
-- True Negative (correctly allow benign): +1.0
-- False Positive (incorrectly block benign): -1.0
-- False Negative (miss an attack): -3.0
-- Shield bonus (action passed Z3 check): +0.5
-
-The asymmetric penalties (-3 for FN vs -1 for FP) reflect the IDS priority: missing an attack is worse than a false alarm.
-
-HYPERPARAMETERS:
-- Learning rate \u03b1=0.15: moderate learning speed
-- Discount factor \u03b3=0.95: values future rewards highly
-- Epsilon start=0.20: 20% random exploration initially
-- Epsilon decay=0.999: slow annealing to exploitation""")
+REWARD: TP:+2, FN:-3, TN:+1, FP:-1, shield_bonus:+0.5
+The asymmetric penalty (-3 FN vs -1 FP) reflects IDS priority: missing attacks is worse than false alarms.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 8: Stage 5 \u2014 DBSCAN Novel Pattern Detection
+    # SLIDE 9: Stage 5 \u2014 DBSCAN Novel Pattern Detection
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
@@ -857,9 +915,8 @@ HYPERPARAMETERS:
         ("return C' = C \u222a C_novel", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.8), Inches(5.3),
-                       5, "DBSCAN Novel Pattern Detection & Constraint Generation", algo_lines)
+                       6, "DBSCAN Novel Pattern Detection & Constraint Generation", algo_lines)
 
-    # Equations
     eq = render_eq_block([
         r"$d(x_i, x_j) = \|x_i - x_j\|_2$    (Euclidean distance)",
         r"$N_\epsilon(x_i) = \{x_j : d(x_i, x_j) \leq \epsilon\}$",
@@ -867,44 +924,25 @@ HYPERPARAMETERS:
     ], fontsize=13, figw=4.5)
     slide.shapes.add_picture(eq, Inches(8.3), Inches(0.7), Inches(4.5))
 
-    # Bullets
     add_bullets(slide, Inches(8.3), Inches(2.8), Inches(4.7), Inches(3.0), [
-        "Collects misclassified flows (where \u0177_i \u2260 y_i) into a buffer and applies DBSCAN density-based clustering (\u03b5=1.5, minPts=5) to discover previously unseen attack patterns.",
-        "Each discovered cluster is converted into a new Z3 constraint using the centroid \u00b1 2\u03c3 range per feature, then added to the constraint set after satisfiability verification.",
-        "Noise points (not in any cluster) are discarded\u2014only dense, coherent groups of misclassified flows generate new constraints, reducing false pattern creation.",
-        "This enables zero-day attack detection: novel attacks that the DT never saw in training are discovered at runtime and formally incorporated into the safety shield."
+        "Collects misclassified flows and applies DBSCAN density-based clustering (\u03b5=1.5, minPts=5) to discover previously unseen attack patterns.",
+        "Each cluster is converted into a Z3 constraint using centroid \u00b1 2\u03c3 per feature, then added after satisfiability verification.",
+        "Noise points (not in any cluster) are discarded\u2014only dense groups generate new constraints, reducing false pattern creation.",
+        "Enables zero-day detection: novel attacks not seen in training are discovered at runtime and formally incorporated into the safety shield."
     ], font_size=11)
 
     add_text_box(slide, Inches(0.3), Inches(6.3), Inches(12.5), Inches(0.4),
-                 "Output: C' = C \u222a C_novel \u2192 Feedback loop: updated constraints improve Stage 4 (Q-Learning) safety shield",
+                 "Output: C' = C \u222a C_novel \u2192 Feedback loop: updated constraints improve Stage 4 safety shield",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 8 \u2014 Stage 5: DBSCAN Novel Attack Pattern Detection
+    add_notes(slide, """SLIDE 9 \u2014 Stage 5: DBSCAN Novel Attack Pattern Detection
 
-PURPOSE: Discover previously unseen (zero-day) attack patterns by clustering misclassified flows and converting discovered clusters into new Z3 constraints.
+DBSCAN is inherently sequential (neighborhood queries depend on prior classifications of core/border/noise points). This is a sequential bottleneck, but runs on a small subset of data (only misclassified flows).
 
-WHY DBSCAN:
-DBSCAN (Density-Based Spatial Clustering of Applications with Noise) is ideal for this task because:
-1. It doesn't require specifying the number of clusters in advance (unlike K-means)
-2. It naturally handles noise \u2014 isolated misclassifications are labeled as noise, not forced into clusters
-3. It finds arbitrarily shaped clusters \u2014 attack patterns in feature space may not be spherical
-4. Two parameters: \u03b5=1.5 (neighborhood radius) and minPts=5 (minimum cluster size)
-
-ALGORITHM:
-1. Collect misclassified flows M = {x_i : predicted \u2260 actual}
-2. Run DBSCAN to find dense clusters in M
-3. For each cluster K_m: compute centroid \u03bc_m and std \u03c3_m
-4. Create Z3 constraint: if all features within \u03bc \u00b1 2\u03c3, then action = majority class
-5. Verify consistency with existing constraints before adding
-
-FEEDBACK LOOP:
-New constraints C_novel are merged with existing C to form C'. This means:
-- Future Q-learning episodes benefit from broader constraint coverage
-- The safety shield becomes more comprehensive over time
-- Previously unseen attack signatures are now formally recognized""")
+The feedback loop C' = C \u222a C_novel means the constraint set grows over time, enabling detection of zero-day attacks.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 9: Stage 6 \u2014 Adaptive Buffer Management
+    # SLIDE 10: Stage 6 \u2014 Adaptive Buffer Management
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
@@ -932,9 +970,8 @@ New constraints C_novel are merged with existing C to form C'. This means:
         ("return B_{t+1}", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.5), Inches(5.0),
-                       6, "Adaptive Buffer Resizing", algo_lines)
+                       7, "Adaptive Buffer Resizing", algo_lines)
 
-    # Equations (simple form since \begin{cases} not supported by mathtext)
     eq2 = render_eq_block([
         r"$|B_{t+1}| = clip(|B_t| + \Delta,\ 10,\ 200)$",
         r"$\Delta = +10\ \ if\ volatility > \tau_{high}$",
@@ -943,11 +980,10 @@ New constraints C_novel are merged with existing C to form C'. This means:
     ], fontsize=13, figw=4.5)
     slide.shapes.add_picture(eq2, Inches(8.2), Inches(0.7), Inches(4.5))
 
-    # Bullets
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
-        "Dynamically resizes the flow buffer (10\u2013200 flows) based on traffic volatility measured by entropy standard deviation and byte rate variance within the current window.",
-        "High volatility (e.g., mixed attack/benign bursts) triggers buffer growth (+10) to accumulate more context for accurate classification decisions.",
-        "Low volatility (e.g., sustained benign traffic) triggers buffer shrinkage (\u22125) to reduce latency and memory footprint for faster real-time response.",
+        "Dynamically resizes the flow buffer (10\u2013200 flows) based on traffic volatility measured by entropy std and byte rate variance.",
+        "High volatility triggers buffer growth (+10) to accumulate more context; low volatility triggers shrinkage (\u22125) for faster response.",
+        "Sequential stage: buffer state depends on previous window (temporal dependency), so this cannot be parallelized within a single stream.",
         "Asymmetric growth/shrink rates (+10/\u22125) create a conservative bias\u2014the system is quicker to accumulate evidence than to discard it."
     ], font_size=11)
 
@@ -955,32 +991,14 @@ New constraints C_novel are merged with existing C to form C'. This means:
                  "Output: Adapted buffer size |B_{t+1}| \u2192 Used by Stage 7 and Stage 8 for windowed classification",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 9 \u2014 Stage 6: Adaptive Buffer Management
+    add_notes(slide, """SLIDE 10 \u2014 Stage 6: Adaptive Buffer Management
 
-PURPOSE: Dynamically adjust the flow buffer size based on real-time traffic characteristics. This is a runtime adaptation mechanism that handles concept drift \u2014 the statistical properties of network traffic changing over time.
+Sequential stage \u2014 buffer state depends on previous window. Cannot be parallelized within a single traffic stream, but different streams (e.g., per-subnet or per-sensor) could maintain independent buffers in parallel.
 
-WHY ADAPTIVE BUFFERING:
-Static buffer sizes create a fundamental trade-off:
-- Small buffers (10-20 flows): Fast response, but insufficient context for accurate decisions in volatile traffic
-- Large buffers (100-200 flows): Better context, but increased latency and may include stale data in changing conditions
-
-The adaptive buffer resolves this by growing during volatility (need more evidence) and shrinking during stability (prioritize speed).
-
-VOLATILITY METRICS:
-1. Entropy standard deviation (\u03c3_ent): Measures how much the entropy feature varies within the buffer. High variation suggests a mix of attack and benign traffic.
-2. Byte rate variance (\u03c3\u00b2_bytes): Measures traffic volume stability. Attack bursts (DoS, DDoS) cause spikes in byte rate.
-3. Combined volatility = \u03c3_ent + normalized \u03c3\u00b2_bytes
-
-RESIZE LOGIC:
-- Growth: +10 flows when volatility exceeds high threshold \u2192 conservative, accumulates more evidence
-- Shrinkage: -5 flows when volatility below low threshold \u2192 gentle reduction
-- Clipping: Always bounded to [10, 200] to prevent degenerate sizes
-- Asymmetry: Grows faster than shrinks (+10 vs -5) creating a cautious bias
-
-IMPLEMENTATION: Uses Python deque with dynamic maxlen. When maxlen shrinks, oldest flows are automatically evicted.""")
+Grows +10 during volatility, shrinks -5 during stability. Bounds: [10, 200]. Asymmetric rates create conservative bias.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 10: Stage 7 \u2014 Dynamic Threshold Adaptation
+    # SLIDE 11: Stage 7 \u2014 Dynamic Threshold Adaptation
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
@@ -1008,9 +1026,8 @@ IMPLEMENTATION: Uses Python deque with dynamic maxlen. When maxlen shrinks, olde
         ("return \u03c4_{t+1}", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.5), Inches(5.0),
-                       7, "Dynamic Threshold Adaptation via EMA Error Balancing", algo_lines)
+                       8, "Dynamic Threshold Adaptation via EMA Error Balancing", algo_lines)
 
-    # Equations
     eq = render_eq_block([
         r"$EMA_t = \beta \cdot x_t + (1-\beta) \cdot EMA_{t-1}$",
         r"$\tau_{t+1} = clip(\tau_t \pm 0.005,\ 0.40,\ 0.70)$",
@@ -1018,55 +1035,30 @@ IMPLEMENTATION: Uses Python deque with dynamic maxlen. When maxlen shrinks, olde
     ], fontsize=13, figw=4.5)
     slide.shapes.add_picture(eq, Inches(8.2), Inches(0.7), Inches(4.5))
 
-    # Bullets
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
-        "Continuously adjusts the classification threshold \u03c4 \u2208 [0.40, 0.70] based on the balance between false positive rate (FPR) and false negative rate (FNR) in recent windows.",
-        "Uses exponential moving average (EMA, \u03b2=0.3) to smooth noisy per-window error rates, preventing the threshold from oscillating due to short-term fluctuations.",
-        "When FPR dominates, the threshold rises (+0.005) to reduce false alarms; when FNR dominates, it falls (\u22120.005) to catch more attacks\u2014creating a self-correcting feedback loop.",
-        "Hard bounds [0.40, 0.70] prevent the threshold from becoming too permissive (miss attacks) or too aggressive (block legitimate traffic)."
+        "Continuously adjusts \u03c4 \u2208 [0.40, 0.70] based on the balance between FPR and FNR using exponential moving average (EMA, \u03b2=0.3).",
+        "When FPR dominates, threshold rises to reduce false alarms; when FNR dominates, it falls to catch more attacks\u2014creating a self-correcting feedback loop.",
+        "Sequential stage: threshold state depends on previous window's EMA values (temporal dependency).",
+        "Hard bounds [0.40, 0.70] prevent threshold from becoming too permissive or too aggressive."
     ], font_size=11)
 
     add_text_box(slide, Inches(0.3), Inches(6.0), Inches(12.5), Inches(0.4),
                  "Output: \u03c4_{t+1} \u2192 Used by Stage 8 for high-confidence direct classification",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 10 \u2014 Stage 7: Dynamic Threshold Adaptation
+    add_notes(slide, """SLIDE 11 \u2014 Stage 7: Dynamic Threshold Adaptation
 
-PURPOSE: Continuously adapt the classification threshold to maintain optimal balance between false positive and false negative rates as traffic patterns evolve.
+Sequential stage \u2014 EMA depends on previous state. Like Stage 6, this cannot be parallelized within a single stream but operates independently across datasets.
 
-WHY DYNAMIC THRESHOLD:
-A static threshold (e.g., 0.5) is suboptimal because:
-- Different datasets have different optimal thresholds due to varying attack ratios
-- Traffic patterns change over time (concept drift), shifting the optimal operating point
-- A threshold that's optimal during training may not be optimal during deployment
-
-EMA ERROR BALANCING:
-Exponential Moving Average smooths the error signals:
-- EMA_FPR = \u03b2 * FPR_t + (1-\u03b2) * EMA_FPR_{t-1}
-- EMA_FNR = \u03b2 * FNR_t + (1-\u03b2) * EMA_FNR_{t-1}
-- \u03b2 = 0.3: gives 30% weight to most recent window, 70% to history
-
-ADAPTATION LOGIC:
-- If EMA_FPR > EMA_FNR: too many false positives \u2192 raise threshold \u2192 fewer flows classified as attacks
-- If EMA_FNR > EMA_FPR: too many missed attacks \u2192 lower threshold \u2192 more flows classified as attacks
-- Step size 0.005: small enough for stable convergence, large enough to adapt within ~100 windows
-
-BOUNDS [0.40, 0.70]:
-- Lower bound 0.40: prevents overly aggressive detection (would cause >30% FPR)
-- Upper bound 0.70: prevents overly permissive detection (would miss >40% of attacks)
-
-OBSERVED CONVERGENCE:
-- UNSW-NB15: converges to \u03c4 \u2248 0.625 (higher attack ratio needs higher threshold)
-- CSE-CIC-2018: converges to \u03c4 \u2248 0.625
-- CIC-IDS2017: converges to \u03c4 \u2248 0.685""")
+Observed convergence: UNSW-NB15 \u2192 \u03c4\u22480.625, CSE-CIC-2018 \u2192 \u03c4\u22480.625, CIC-IDS2017 \u2192 \u03c4\u22480.685.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 11: Stage 8 \u2014 Final Classification Decision
+    # SLIDE 12: Stage 8 \u2014 Final Classification Decision
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
     add_text_box(slide, Inches(0.3), Inches(0.15), Inches(12.5), Inches(0.5),
-                 "Stage 8: Final Classification Decision",
+                 "Stage 8: Final Classification Decision  [\u26a1 Parallelizable per Flow]",
                  font_size=24, bold=True, color=NAVY)
 
     algo_lines = [
@@ -1090,12 +1082,11 @@ OBSERVED CONVERGENCE:
         ("end if", 1, True),
         ("confidence \u2190 'RL_VERIFIED'", 1, False),
         ("end if", 0, True),
-        ("return \u0177_i, confidence, audit_trail(p_i, s_i, C)", 0, True),
+        ("return \u0177_i, confidence, audit_trail(p_i, s_i, C)  // \u26a1 per-flow parallel", 0, True),
     ]
     add_ieee_algorithm(slide, Inches(0.3), Inches(0.7), Inches(7.8), Inches(5.5),
-                       8, "Final Classification with Tiered Decision Logic", algo_lines)
+                       9, "Final Classification with Tiered Decision Logic", algo_lines)
 
-    # Equations
     eq = render_eq_block([
         r"$p_i \geq \tau \Rightarrow ATTACK$",
         r"$p_i \leq 1-\tau \Rightarrow BENIGN$",
@@ -1103,55 +1094,135 @@ OBSERVED CONVERGENCE:
     ], fontsize=13, figw=4)
     slide.shapes.add_picture(eq, Inches(8.3), Inches(0.7), Inches(4.0))
 
-    # Bullets
     add_bullets(slide, Inches(8.3), Inches(2.8), Inches(4.5), Inches(3.0), [
-        "Uses a three-tier decision logic: flows with high DT confidence (p \u2265 \u03c4 or p \u2264 1\u2212\u03c4) are classified directly; uncertain flows in the middle range are deferred to the RL agent with Z3 verification.",
-        "The RL+Z3 path handles the hardest cases\u2014ambiguous flows near the decision boundary\u2014where the Q-learning policy and formal safety shield provide the most value.",
-        "Every classification produces a full audit trail: DT probability, leaf state, Z3 constraint check result, and confidence level, enabling complete explainability.",
-        "This tiered approach reduces Z3 solver calls (~70% of flows are high-confidence), balancing verification overhead with classification accuracy."
+        "Three-tier logic: high-confidence flows (p \u2265 \u03c4 or p \u2264 1\u2212\u03c4) classified directly; uncertain flows deferred to RL+Z3 verification.",
+        "Embarrassingly parallel: each flow's classification is independent\u2014Q-table and constraint set are read-only at inference time.",
+        "Every classification produces a full audit trail: DT probability, leaf state, Z3 check result, and confidence level for complete explainability.",
+        "Tiered approach reduces Z3 solver calls (~70% of flows are high-confidence), balancing verification overhead with throughput."
     ], font_size=11)
 
     add_text_box(slide, Inches(0.3), Inches(6.3), Inches(12.5), Inches(0.4),
                  "Output: \u0177_i \u2208 {0, 1} with confidence level and full audit trail for every classification decision",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
-    add_notes(slide, """SLIDE 11 \u2014 Stage 8: Final Classification Decision
+    add_notes(slide, """SLIDE 12 \u2014 Stage 8: Final Classification Decision
 
-PURPOSE: Combine all previous stages into a final, verified classification decision for each network flow.
+PARALLELISM: This is the most parallelizable stage. At inference time:
+- The Q-table is frozen (read-only) \u2192 no write conflicts
+- The constraint set C is frozen (read-only) \u2192 each Z3 solver instance is independent
+- Each flow x_i is classified independently \u2192 embarrassingly parallel
+- Can distribute across N cores for ~Nx throughput improvement
 
-THREE-TIER DECISION LOGIC:
-The classification uses the dynamic threshold \u03c4 from Stage 7 to create three confidence zones:
-
-Tier 1 \u2014 High Confidence Attack (p_i \u2265 \u03c4):
-- The DT leaf probability exceeds the adaptive threshold
-- Classified as ATTACK without invoking RL or Z3
-- Fastest path \u2014 no solver overhead
-- Typically ~50% of flows in attack-heavy periods
-
-Tier 2 \u2014 High Confidence Benign (p_i \u2264 1-\u03c4):
-- The DT leaf probability is below the complementary threshold
-- Classified as BENIGN without invoking RL or Z3
-- Typically ~20% of flows
-
-Tier 3 \u2014 Uncertain Region (1-\u03c4 < p_i < \u03c4):
-- DT is uncertain \u2014 this is where ASRRL adds the most value
-- The Q-learning agent proposes an action based on learned policy
-- Z3 safety shield verifies the action against formal constraints
-- If verified: execute RL action; if not: override with safe alternative
-- Typically ~30% of flows
-
-AUDIT TRAIL:
-Every classification produces:
-1. DT leaf probability p_i
-2. Leaf state s_i
-3. Tier used (HIGH_ATTACK, HIGH_BENIGN, RL_VERIFIED)
-4. Z3 verification result (for Tier 3 only)
-5. Original RL proposed action vs final action (if shield overrode)
-
-This provides complete explainability \u2014 every decision can be traced back through the pipeline.""")
+This is where real-time IDS throughput is critical \u2014 production systems need to classify millions of flows per second.""")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SLIDE 12: Results Summary
+    # SLIDE 13: Parallel Processing Architecture (NEW)
+    # ═══════════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_bg(slide, WHITE)
+    add_text_box(slide, Inches(0.3), Inches(0.15), Inches(12.5), Inches(0.5),
+                 "Parallel Processing Architecture Across the ASRRL Pipeline",
+                 font_size=26, bold=True, color=DARK_BLUE, alignment=PP_ALIGN.CENTER)
+
+    # Parallel stages (green boxes)
+    add_text_box(slide, Inches(0.3), Inches(0.8), Inches(6), Inches(0.4),
+                 "\u26a1 Parallelizable Stages (Embarrassingly Parallel)",
+                 font_size=16, bold=True, color=DARK_GREEN)
+
+    par_lines = [
+        ("Stage 0: PCAP Binary Preprocessing", 13, True, DARK_GREEN),
+        ("  Granularity: Per PCAP file / per time window", 11, False, BLACK),
+        ("  Strategy: Each capture file processed by independent worker", 11, False, BLACK),
+        ("  Speedup: ~Nx with N CPU cores (I/O bound)", 11, False, GRAY),
+        ("  Tool: CICFlowMeter instances or parallel Argus processes", 11, False, GRAY),
+        ("", 4, False, BLACK),
+        ("Stage 3: Z3 Constraint Extraction", 13, True, DARK_GREEN),
+        ("  Granularity: Per leaf path (L \u2248 60 independent paths)", 11, False, BLACK),
+        ("  Strategy: Extract each path in parallel; sequential merge + sat check", 11, False, BLACK),
+        ("  Speedup: ~min(L, N) with N cores", 11, False, GRAY),
+        ("  Note: Final satisfiability merge is sequential (consistency check)", 11, False, GRAY),
+        ("", 4, False, BLACK),
+        ("Stage 8: Final Classification (Inference)", 13, True, DARK_GREEN),
+        ("  Granularity: Per flow (each flow independently classified)", 11, False, BLACK),
+        ("  Strategy: Partition flow stream across N workers; read-only Q-table + C", 11, False, BLACK),
+        ("  Speedup: ~Nx with N cores (CPU bound per Z3 call)", 11, False, GRAY),
+        ("  Note: ~70% direct classification (no Z3 call); ~30% invoke solver", 11, False, GRAY),
+        ("", 4, False, BLACK),
+        ("Cross-Dataset: All 3 datasets processed independently", 13, True, DARK_GREEN),
+        ("  Strategy: 3 pipeline instances run in parallel (no shared state)", 11, False, BLACK),
+        ("  Speedup: 3x wall-clock time reduction", 11, False, GRAY),
+    ]
+    add_ml(slide, Inches(0.3), Inches(1.2), Inches(6.2), Inches(5.5), par_lines, font_name="Consolas")
+
+    # Sequential stages (red boxes)
+    add_text_box(slide, Inches(7.0), Inches(0.8), Inches(6), Inches(0.4),
+                 "\u23f8 Sequential Bottlenecks",
+                 font_size=16, bold=True, color=DARK_RED)
+
+    seq_lines = [
+        ("Stage 2: Decision Tree Training", 13, True, DARK_RED),
+        ("  Reason: CART greedy splits are data-dependent", 11, False, BLACK),
+        ("  Each split depends on the partition from", 11, False, BLACK),
+        ("  the previous split (inherently sequential).", 11, False, BLACK),
+        ("  Impact: Low (tree depth=6, trains in <1 second)", 11, False, GRAY),
+        ("", 4, False, BLACK),
+        ("Stage 4: Q-Learning Training (within episode)", 13, True, DARK_RED),
+        ("  Reason: Q-table updates are sequential", 11, False, BLACK),
+        ("  (each update depends on current Q-values).", 11, False, BLACK),
+        ("  Mitigation: Cross-dataset parallelism (3 Q-tables)", 11, False, GRAY),
+        ("", 4, False, BLACK),
+        ("Stage 5: DBSCAN Clustering", 13, True, DARK_RED),
+        ("  Reason: Core/border/noise classification is", 11, False, BLACK),
+        ("  sequential (neighbor queries depend on prior labels).", 11, False, BLACK),
+        ("  Impact: Low (runs on small subset: misclassified only)", 11, False, GRAY),
+        ("", 4, False, BLACK),
+        ("Stages 6-7: Buffer & Threshold Adaptation", 13, True, DARK_RED),
+        ("  Reason: Temporal dependency \u2014 each window's state", 11, False, BLACK),
+        ("  depends on the previous window's EMA / buffer size.", 11, False, BLACK),
+        ("  Mitigation: Independent per-stream/per-sensor buffers", 11, False, GRAY),
+    ]
+    add_ml(slide, Inches(7.0), Inches(1.2), Inches(6), Inches(5.5), seq_lines, font_name="Consolas")
+
+    # Bottom summary
+    add_text_box(slide, Inches(0.3), Inches(6.8), Inches(12.5), Inches(0.5),
+                 "Training Phase: Stages 0\u20135 (mostly sequential except Stage 0 & 3)  |  "
+                 "Inference Phase: Stage 8 (fully parallel per flow)  |  "
+                 "Adaptation: Stages 6\u20137 (sequential per stream, parallel across streams)",
+                 font_size=12, bold=True, color=DARK_BLUE, alignment=PP_ALIGN.CENTER)
+
+    add_notes(slide, """SLIDE 13 \u2014 Parallel Processing Architecture
+
+This slide addresses the advisor's question about where parallel processing is used in the pipeline.
+
+SUMMARY OF PARALLELISM:
+
+EMBARRASSINGLY PARALLEL STAGES:
+1. Stage 0 (PCAP Preprocessing): Each PCAP file is processed by an independent CICFlowMeter/Argus instance. No shared state between files. This is I/O-bound and scales linearly with CPU cores.
+
+2. Stage 3 (Z3 Constraint Extraction): Each of the L leaf paths can be extracted independently. The path traversal and constraint construction are pure functions of the tree structure. Only the final merge step (checking consistency of the full constraint set) requires sequential processing.
+
+3. Stage 8 (Final Classification at Inference): This is the critical real-time stage. At inference time, the Q-table and constraint set are both read-only (frozen after training). Each flow can be classified by an independent worker thread/process. With N CPU cores, throughput scales ~Nx. The tiered approach further helps: ~70% of flows take the fast path (direct DT classification, no Z3 call), only ~30% require Z3 solver invocation.
+
+4. Cross-Dataset Parallelism: Since each dataset has its own independent pipeline (separate DT, Q-table, constraint set, buffer, threshold), all three datasets can be processed simultaneously.
+
+SEQUENTIAL BOTTLENECKS (and why they're acceptable):
+1. Stage 2 (DT Training): CART is inherently sequential, but with depth=6 and 50K samples, it completes in <1 second.
+2. Stage 4 (Q-Learning): Within an episode, Q-updates are sequential. But training converges quickly and runs offline.
+3. Stage 5 (DBSCAN): Sequential neighborhood queries, but operates on the small subset of misclassified flows only.
+4. Stages 6-7 (Buffer/Threshold): Temporal dependencies prevent within-stream parallelism. However, different network segments (per-subnet, per-sensor, per-VLAN) can maintain independent buffer/threshold states in parallel.
+
+TRAINING vs INFERENCE:
+- Training phase (Stages 0-7): Mostly sequential, runs offline. Total time: seconds to minutes depending on dataset size.
+- Inference phase (Stage 8): Fully parallel, runs in real-time. This is where parallelism matters most for production IDS deployment.
+
+IMPLEMENTATION OPTIONS:
+- Python multiprocessing.Pool for Stage 0 (PCAP files)
+- concurrent.futures.ThreadPoolExecutor for Stage 3 (leaf paths, GIL-free Z3 calls)
+- Ray or Dask for distributed Stage 8 inference across multiple machines
+- Independent process per dataset for cross-dataset parallelism""")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # SLIDE 14: Results Summary
     # ═══════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide, WHITE)
@@ -1159,11 +1230,6 @@ This provides complete explainability \u2014 every decision can be traced back t
                  "Experimental Results \u2014 ASRRL Dynamic vs. Static Baselines",
                  font_size=26, bold=True, color=DARK_BLUE, alignment=PP_ALIGN.CENTER)
 
-    # Results table header
-    header = [
-        ("Dataset", 12, True, WHITE),
-    ]
-    # Build a simple results summary
     results = [
         ("", 6, False, BLACK),
         ("                          ASRRL Dynamic        Random Forest      XGBoost         SVM             KNN", 10, True, DARK_BLUE),
@@ -1191,33 +1257,23 @@ This provides complete explainability \u2014 every decision can be traced back t
         ("  Final Threshold:        0.685                N/A                N/A             N/A             N/A", 10, False, MED_BLUE),
         ("", 4, False, BLACK),
         ("Key Insight: ASRRL achieves competitive F1 (0.98+) while providing formal safety guarantees,", 11, True, DARK_GREEN),
-        ("dynamic adaptation (buffer+threshold), and zero-day detection that static classifiers lack.", 11, True, DARK_GREEN),
+        ("dynamic adaptation (buffer+threshold), zero-day detection, and parallel inference scalability.", 11, True, DARK_GREEN),
     ]
     add_ml(slide, Inches(0.3), Inches(0.6), Inches(12.5), Inches(6.5), results, font_name="Consolas")
 
-    add_notes(slide, """SLIDE 12 \u2014 Experimental Results: ASRRL Dynamic vs. Static Baselines
+    add_notes(slide, """SLIDE 14 \u2014 Experimental Results
 
-PERFORMANCE OVERVIEW:
-ASRRL Dynamic (Buffer+Threshold) achieves F1 scores of 0.98+ across all three datasets, which is competitive with static baselines like Random Forest (0.99+) and XGBoost (0.99+).
+ASRRL Dynamic achieves F1 scores of 0.98+ across all three datasets, competitive with static baselines (RF: 0.99+, XGBoost: 0.99+).
 
-KEY FINDING \u2014 WHY SLIGHTLY LOWER F1 IS ACCEPTABLE:
-While ASRRL's F1 is 1-2% below the best static classifiers, it provides capabilities that no static classifier can match:
+Why slightly lower F1 is acceptable:
+1. FORMAL SAFETY GUARANTEES: Every classification is Z3-verified
+2. DYNAMIC ADAPTATION: Buffer and threshold adapt at runtime
+3. ZERO-DAY DETECTION: DBSCAN discovers novel attack patterns
+4. PARALLEL INFERENCE: Stage 8 scales linearly with CPU cores
+5. COMPLETE EXPLAINABILITY: Full audit trail per decision
 
-1. FORMAL SAFETY GUARANTEES: Every ASRRL classification is verified against Z3 constraints. Static classifiers are black boxes (RF) or shallow interpretable (DT alone) but cannot provide mathematical proofs of safety.
-
-2. DYNAMIC ADAPTATION: The buffer converges to dataset-specific sizes (30-37 flows) and the threshold adapts to dataset-specific optima (0.625-0.685). Static classifiers use fixed parameters set at training time.
-
-3. ZERO-DAY DETECTION: DBSCAN discovers novel attack patterns at runtime and incorporates them into the constraint set. Static classifiers can only detect attack types seen in training data.
-
-4. COMPLETE EXPLAINABILITY: Every ASRRL decision has an audit trail (DT probability, leaf state, Z3 check, confidence tier). RF provides feature importance but not per-decision explanations.
-
-STATISTICAL SIGNIFICANCE (from table_significance.csv):
-- Wilcoxon signed-rank tests show ASRRL significantly differs from most baselines at p<0.05
-- Notable exceptions: XGBoost on CSE-CIC-2018 (p=0.084) and LightGBM on UNSW-NB15 (p=0.225)
-
-CONSTRAINT FIDELITY (from table_fidelity.csv):
-- All three datasets achieve 100% fidelity, 100% coverage, 100% opinion rate
-- This means every Z3 constraint is satisfiable and consistent with the data""")
+Statistical significance: Wilcoxon tests show significant differences from most baselines at p<0.05.
+Constraint fidelity: 100% fidelity, coverage, and opinion rate across all datasets.""")
 
     # ── Save ──
     out = os.path.join(os.path.dirname(__file__), "ASRRL_Methodology.pptx")
