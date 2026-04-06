@@ -3,12 +3,15 @@ import numpy as np
 
 def generate_data(cfg):
     """Generate dataset-faithful synthetic flows with label-correlated features.
-    Columns: flow_duration, pkt_rate, byte_rate, entropy, label
+    Columns: flow_duration, pkt_rate, byte_rate, entropy (variability proxy), label
 
-    Attack flows have distinct feature signatures (higher entropy, burstier
+    Attack flows have distinct feature signatures (higher variability, burstier
     traffic) so that the SymbolicModel can learn meaningful decision boundaries,
     mirroring the separability found in real UNSW-NB15, CSE-CIC-IDS-2018, and
     CIC-IDS2017 datasets.
+
+    NOTE: The 'entropy' column is a traffic variability proxy, NOT Shannon
+    information entropy. See real_data.py for the per-dataset derivation.
     """
     n = cfg.SAMPLES
 

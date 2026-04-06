@@ -11,6 +11,17 @@ Each dataset is standardised to a common schema:
   Labels:   0=benign, 1=attack
   Multi-class: attack_cat column (string) when available
 
+NOTE on 'entropy' feature:
+  This is NOT Shannon information entropy (H = -sum p_i log p_i).
+  It is a traffic variability/diversity proxy derived from dataset-specific columns:
+    - UNSW-NB15:  ct_srv_src (service connection count), min-max normalized to [0,1].
+                  Measures connection diversity from a source to a service.
+    - CSE-CIC-2018 / CIC-IDS2017:  Fwd IAT Std (forward inter-arrival time std dev),
+                  quantile-normalized to [0,1] using 1st-99th percentile clipping.
+                  Measures timing variability of forward packets in a flow.
+  Both proxies capture traffic regularity vs. irregularity, which correlates with
+  attack behavior (scanning, probing, bursts) similarly to information entropy.
+
 Falls back to enhanced synthetic data if download/loading fails.
 
 Usage:
@@ -80,7 +91,7 @@ UNSW_FEATURE_MAP = {
     "dur": "flow_duration",
     "rate": "pkt_rate",
     "sbytes": "byte_rate",
-    "ct_srv_src": "entropy",   # service connection count as proxy for entropy
+    "ct_srv_src": "entropy",   # service connection count → traffic variability proxy (NOT Shannon entropy)
 }
 
 UNSW_ATTACK_CATS = {
@@ -154,7 +165,8 @@ def _preprocess_unsw(raw_df):
     else:
         result["byte_rate"] = 0
 
-    # entropy: use ct_srv_src (connection count as proxy) or sttl variation
+    # entropy (traffic variability proxy): use ct_srv_src (connection diversity) or sttl variation
+    # NOT Shannon entropy — measures connection pattern diversity, min-max normalized to [0,1]
     for col in ["ct_srv_src", "sttl", "sjit"]:
         if col in df.columns:
             vals = pd.to_numeric(df[col], errors="coerce").fillna(0)
@@ -280,7 +292,8 @@ def _preprocess_cic(raw_df, dataset_name="CSE"):
     else:
         result["byte_rate"] = 0
 
-    # entropy: use Fwd IAT Std or packet length variance as proxy
+    # entropy (traffic variability proxy): use Fwd IAT Std (timing variability) or pkt length variance
+    # NOT Shannon entropy — measures forward inter-arrival time irregularity, quantile-normalized to [0,1]
     for col in ["Fwd IAT Std", "fwd_iat_std", "Flow IAT Std"]:
         if col in df.columns:
             vals = pd.to_numeric(df[col], errors="coerce").fillna(0)
@@ -474,7 +487,7 @@ def load_dataset(ds, n=50000, seed=42):
     Returns
     -------
     pd.DataFrame
-        Columns: flow_duration, pkt_rate, byte_rate, entropy, port_cat,
+        Columns: flow_duration, pkt_rate, byte_rate, entropy (variability proxy), port_cat,
                  size_cat, protocol, label, attack_cat
     str
         "real" or "synthetic" indicating data source

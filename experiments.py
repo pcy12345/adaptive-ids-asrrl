@@ -61,6 +61,8 @@ DATASET_LABELS = {
 #  CORE FRAMEWORK (from your research)
 # ═══════════════════════════════════════════════════════════════════════════
 
+# NOTE: "entropy" is a traffic variability proxy (NOT Shannon entropy).
+# UNSW: min-max normalized ct_srv_src; CIC: quantile-normalized Fwd IAT Std.
 FEATURE_NAMES = [
     "flow_duration", "pkt_rate", "byte_rate", "entropy",
     "port_cat", "size_cat", "protocol"

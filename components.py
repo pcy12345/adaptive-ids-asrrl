@@ -5,6 +5,9 @@ import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import StandardScaler
 
+# NOTE: "entropy" is a traffic variability proxy (NOT Shannon entropy).
+# UNSW-NB15: derived from ct_srv_src (connection diversity, min-max normalized).
+# CIC datasets: derived from Fwd IAT Std (timing variability, quantile-normalized).
 FEATURES = ["flow_duration", "pkt_rate", "byte_rate", "entropy"]
 
 @dataclass
