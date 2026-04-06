@@ -69,11 +69,11 @@ DATASET_LABELS = {
     "CIC2017": "CIC-IDS2017",
 }
 
-# NOTE: "entropy" is a traffic variability proxy (NOT Shannon information entropy).
+# NOTE: "traffic_pat_var" is a traffic pattern variability proxy (NOT Shannon information entropy).
 # UNSW-NB15: min-max normalized ct_srv_src (connection diversity metric).
 # CIC datasets: quantile-normalized Fwd IAT Std (timing variability metric).
 FEATURE_NAMES = [
-    "flow_duration", "pkt_rate", "byte_rate", "entropy",
+    "flow_duration", "pkt_rate", "byte_rate", "traffic_pat_var",
     "port_cat", "size_cat", "protocol"
 ]
 

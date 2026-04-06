@@ -5,14 +5,14 @@ import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import StandardScaler
 
-# NOTE: "entropy" is a traffic variability proxy (NOT Shannon entropy).
+# NOTE: "traffic_pat_var" is a traffic pattern variability proxy (NOT Shannon entropy).
 # UNSW-NB15: derived from ct_srv_src (connection diversity, min-max normalized).
 # CIC datasets: derived from Fwd IAT Std (timing variability, quantile-normalized).
-FEATURES = ["flow_duration", "pkt_rate", "byte_rate", "entropy"]
+FEATURES = ["flow_duration", "pkt_rate", "byte_rate", "traffic_pat_var"]
 
 @dataclass
 class BufferStats:
-    mean_entropy: float
+    mean_traffic_pat_var: float
     byte_variance: float
     mean_pkt_rate: float
     mean_byte_rate: float
@@ -59,7 +59,7 @@ class Normalizer:
         X_scaled_df = pd.DataFrame(X_scaled, columns=[f"z_{c}" for c in FEATURES])
 
         stats = BufferStats(
-            mean_entropy=float(window_df["entropy"].mean()),
+            mean_traffic_pat_var=float(window_df["traffic_pat_var"].mean()),
             byte_variance=float(window_df["byte_rate"].var()),
             mean_pkt_rate=float(window_df["pkt_rate"].mean()),
             mean_byte_rate=float(window_df["byte_rate"].mean()),

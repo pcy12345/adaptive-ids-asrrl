@@ -61,10 +61,10 @@ DATASET_LABELS = {
 #  CORE FRAMEWORK (from your research)
 # ═══════════════════════════════════════════════════════════════════════════
 
-# NOTE: "entropy" is a traffic variability proxy (NOT Shannon entropy).
+# NOTE: "traffic_pat_var" is a traffic pattern variability proxy (NOT Shannon entropy).
 # UNSW: min-max normalized ct_srv_src; CIC: quantile-normalized Fwd IAT Std.
 FEATURE_NAMES = [
-    "flow_duration", "pkt_rate", "byte_rate", "entropy",
+    "flow_duration", "pkt_rate", "byte_rate", "traffic_pat_var",
     "port_cat", "size_cat", "protocol"
 ]
 
@@ -296,7 +296,7 @@ def _generate(n, ds):
         "flow_duration": _col(dur_n, dur_a),
         "pkt_rate": _col(pr_n, pr_a),
         "byte_rate": _col(br_n, br_a),
-        "entropy": _col(en_n, en_a),
+        "traffic_pat_var": _col(en_n, en_a),
         "port_cat":  rng.integers(0, 6, n),
         "size_cat":  rng.integers(0, 4, n),
         "protocol":  rng.integers(0, 3, n),

@@ -383,12 +383,12 @@ DATASETS: UNSW-NB15, CSE-CIC-IDS-2018, CIC-IDS2017.""")
 
     flow = [
         ("Stage 0:  Binary PCAP packets  \u2192  CICFlowMeter/Argus  \u2192  5-tuple flow aggregation  \u2192  CSV (49\u201380+ columns per flow)", 9, False, BLACK),
-        ("Stage 1:  Raw columns (dur, rate, sbytes, ...)  \u2192  x_i = [flow_duration, pkt_rate, byte_rate, entropy*, port_cat, size_cat, protocol] \u2208 R^7", 9, False, BLACK),
+        ("Stage 1:  Raw columns (dur, rate, sbytes, ...)  \u2192  x_i = [flow_duration, pkt_rate, byte_rate, traffic_pat_var*, port_cat, size_cat, protocol] \u2208 R^7", 9, False, BLACK),
         ("Stage 2:  X_norm \u2208 R^(n\u00d77) \u2192 DecisionTree(max_depth=6) \u2192  leaf_id(x_i), P(attack|x_i), \u0177_DT(x_i) \u2208 {0,1}", 9, False, BLACK),
         ("Stage 3:  DT paths (root \u2192 leaf) \u2192 Z3 Implies(\u2227 (f_j op \u03b8_j), action=class)  \u2192  constraint set C = {\u03c6_1,...,\u03c6_L}  [\u26a1 parallel per leaf]", 9, False, BLACK),
         ("Stage 4:  state s_i = leaf_id(x_i) \u2192 Q(s,a) \u2192 a_i* = argmax Q(s_i,a)  subject to Z3 verify(x_i, a_i*) = sat", 9, False, BLACK),
         ("Stage 5:  misclassified {x_i : \u00e2_i \u2260 a_i*} \u2192 DBSCAN(\u03b5=1.5, minPts=5) \u2192 novel centroids \u2192 C' = C \u222a C_novel", 9, False, BLACK),
-        ("Stage 6:  \u03c3_variability, \u03c3\u00b2_bytes of window W_t \u2192 |B_{t+1}| = clip(|B_t| \u00b1 \u0394, 10, 200)", 9, False, BLACK),
+        ("Stage 6:  \u03c3_tpv, \u03c3\u00b2_bytes of window W_t \u2192 |B_{t+1}| = clip(|B_t| \u00b1 \u0394, 10, 200)", 9, False, BLACK),
         ("Stage 7:  EMA(FPR_t, FNR_t) \u2192 \u03c4_{t+1} = clip(\u03c4_t \u00b1 0.005, 0.40, 0.70)", 9, False, BLACK),
         ("Stage 8:  p_i \u2265 \u03c4 \u2192 ATTACK;  p_i \u2264 1-\u03c4 \u2192 BENIGN;  else \u2192 RL+Z3 shield \u2192 \u0177_i \u2208 {0,1}  [\u26a1 parallel per flow]", 9, False, BLACK),
     ]
@@ -443,7 +443,7 @@ SEQUENTIAL BOTTLENECKS:
         ("  flow_duration = dur \u00d7 1000  (sec \u2192 ms)", 10, False, BLACK),
         ("  pkt_rate      = rate  (or (spkts+dpkts)/dur)", 10, False, BLACK),
         ("  byte_rate     = sbytes + dbytes", 10, False, BLACK),
-        ("  entropy*      = normalize(ct_srv_src, [0,1])", 10, False, BLACK),
+        ("  traffic_pat_var* = normalize(ct_srv_src, [0,1])", 10, False, BLACK),
         ("  port_cat      = bin(dsport, [80,443,1K,5K,10K,65K])", 10, False, BLACK),
         ("  size_cat      = bin(byte_rate, [100,1K,10K,\u221e])", 10, False, BLACK),
         ("  protocol      = {tcp:0, udp:1, icmp:2}", 10, False, BLACK),
@@ -470,7 +470,7 @@ SEQUENTIAL BOTTLENECKS:
         ("  flow_duration = Flow Duration / 1000  (\u03bcs \u2192 ms)", 10, False, BLACK),
         ("  pkt_rate      = Flow Packets/s", 10, False, BLACK),
         ("  byte_rate     = Flow Bytes/s", 10, False, BLACK),
-        ("  entropy*      = quantile_norm(Fwd IAT Std)", 10, False, BLACK),
+        ("  traffic_pat_var* = quantile_norm(Fwd IAT Std)", 10, False, BLACK),
         ("  port_cat      = bin(Dst Port, [80,443,1K,5K,10K,65K])", 10, False, BLACK),
         ("  size_cat      = bin(bytes\u00d7dur, [100,1K,10K,\u221e])", 10, False, BLACK),
         ("  protocol      = {6\u2192TCP:0, 17\u2192UDP:1, 1\u2192ICMP:2}", 10, False, BLACK),
@@ -497,7 +497,7 @@ SEQUENTIAL BOTTLENECKS:
         ("  flow_duration = Flow Duration / 1000  (\u03bcs \u2192 ms)", 10, False, BLACK),
         ("  pkt_rate      = Flow Packets/s", 10, False, BLACK),
         ("  byte_rate     = Flow Bytes/s", 10, False, BLACK),
-        ("  entropy*      = quantile_norm(Fwd IAT Std)", 10, False, BLACK),
+        ("  traffic_pat_var* = quantile_norm(Fwd IAT Std)", 10, False, BLACK),
         ("  port_cat      = bin(Dst Port, [80,443,1K,5K,10K,65K])", 10, False, BLACK),
         ("  size_cat      = bin(bytes\u00d7dur, [100,1K,10K,\u221e])", 10, False, BLACK),
         ("  protocol      = {6\u2192TCP:0, 17\u2192UDP:1, 1\u2192ICMP:2}", 10, False, BLACK),
@@ -510,11 +510,11 @@ SEQUENTIAL BOTTLENECKS:
     add_ml(slide, Inches(9.0), Inches(1.3), Inches(4.2), Inches(5.5), cic_lines, font_name="Consolas")
 
     add_text_box(slide, Inches(0.3), Inches(6.4), Inches(12.5), Inches(0.3),
-                 "*entropy is a traffic variability proxy (NOT Shannon entropy): UNSW uses ct_srv_src (connection diversity); "
+                 "*traffic_pat_var is a traffic pattern variability proxy (NOT Shannon entropy): UNSW uses ct_srv_src (connection diversity); "
                  "CIC datasets use Fwd IAT Std (timing variability), both normalized to [0,1].",
                  font_size=10, bold=False, color=GRAY, alignment=PP_ALIGN.LEFT)
     add_text_box(slide, Inches(0.3), Inches(6.7), Inches(12.5), Inches(0.5),
-                 "All 3 datasets \u2192 Standardized schema:  x_i = [flow_duration, pkt_rate, byte_rate, entropy*, "
+                 "All 3 datasets \u2192 Standardized schema:  x_i = [flow_duration, pkt_rate, byte_rate, traffic_pat_var*, "
                  "port_cat, size_cat, protocol],  y_i \u2208 {0,1}",
                  font_size=13, bold=True, color=MED_BLUE, alignment=PP_ALIGN.CENTER)
 
@@ -675,7 +675,7 @@ KEY POINT: The three benchmark datasets ship as pre-extracted CSVs. The PCAP-to-
     slide.shapes.add_picture(eq, Inches(8.2), Inches(0.7), Inches(4.8))
 
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
-        "Maps the 49\u201380+ raw CSV columns from Stage 0 into a unified 7-dimensional representation: [flow_duration, pkt_rate, byte_rate, entropy*, port_cat, size_cat, protocol]. *entropy is a traffic variability proxy, not Shannon entropy.",
+        "Maps the 49\u201380+ raw CSV columns from Stage 0 into a unified 7-dimensional representation: [flow_duration, pkt_rate, byte_rate, traffic_pat_var*, port_cat, size_cat, protocol]. *traffic_pat_var is a traffic pattern variability proxy, not Shannon entropy.",
         "Applies Z-score normalization (StandardScaler) to the 4 continuous features, ensuring zero mean and unit variance to prevent scale dominance.",
         "Categorical features (port_cat, size_cat, protocol) are binned into integer categories and passed through unchanged.",
         "The scaler is fit on training data only and applied to test data to prevent data leakage."
@@ -959,9 +959,9 @@ The feedback loop C' = C \u222a C_novel means the constraint set grows over time
         ("Ensure: Resized buffer B_{t+1} adapted to traffic volatility", 0, False),
         ("for each time window W_t of flows do", 0, True),
         ("B_t.append(flows in W_t)  // sliding window buffer", 1, False),
-        ("\u03c3_var \u2190 std({variability(x) : x \u2208 B_t})  // traffic variability volatility", 1, False),
+        ("\u03c3_tpv \u2190 std({traffic_pat_var(x) : x \u2208 B_t})  // traffic pattern variability volatility", 1, False),
         ("\u03c3\u00b2_bytes \u2190 var({byte_rate(x) : x \u2208 B_t})  // byte rate variance", 1, False),
-        ("volatility \u2190 \u03c3_ent + \u03c3\u00b2_bytes / max(\u03c3\u00b2_bytes)", 1, False),
+        ("volatility \u2190 \u03c3_tpv + \u03c3\u00b2_bytes / max(\u03c3\u00b2_bytes)", 1, False),
         ("if volatility > high_threshold then", 1, True),
         ("\u0394 \u2190 +10  // high volatility: grow buffer for more context", 2, False),
         ("else if volatility < low_threshold then", 1, True),
@@ -985,7 +985,7 @@ The feedback loop C' = C \u222a C_novel means the constraint set grows over time
     slide.shapes.add_picture(eq2, Inches(8.2), Inches(0.7), Inches(4.5))
 
     add_bullets(slide, Inches(8.2), Inches(3.0), Inches(4.8), Inches(2.5), [
-        "Dynamically resizes the flow buffer (10\u2013200 flows) based on traffic volatility measured by variability proxy std and byte rate variance.",
+        "Dynamically resizes the flow buffer (10\u2013200 flows) based on traffic volatility measured by traffic_pat_var std and byte rate variance.",
         "High volatility triggers buffer growth (+10) to accumulate more context; low volatility triggers shrinkage (\u22125) for faster response.",
         "Sequential stage: buffer state depends on previous window (temporal dependency), so this cannot be parallelized within a single stream.",
         "Asymmetric growth/shrink rates (+10/\u22125) create a conservative bias\u2014the system is quicker to accumulate evidence than to discard it."

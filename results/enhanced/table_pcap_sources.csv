@@ -1,0 +1,4 @@
+dataset,pcap_source,capture_environment,flow_extraction_tool,raw_feature_count,total_flows,attack_types,attack_ratio,year
+UNSW-NB15,IXIA PerfectStorm traffic generator,UNSW Canberra Cyber Range,Argus + Bro-IDS (Zeek),49,2.54M,9,30%,2015
+CSE-CIC-IDS-2018,AWS EC2 infrastructure,CIC simulated enterprise (10-day run),CICFlowMeter v4,80,16.23M,7,15%,2018
+CIC-IDS2017,CIC lab B-Profile agents,CIC network lab (5-day run),CICFlowMeter v3,80,3.12M,14,20%,2017

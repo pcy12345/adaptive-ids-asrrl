@@ -1,0 +1,28 @@
+dataset,standardized_feature,raw_source_column,transformation,data_type,range
+UNSW-NB15,flow_duration,dur,dur*1000 (sec to ms),continuous,"[0, inf)"
+UNSW-NB15,pkt_rate,rate,rate as-is,continuous,"[0, inf)"
+UNSW-NB15,byte_rate,sbytes+dbytes,sbytes+dbytes,continuous,"[0, inf)"
+UNSW-NB15,traffic_pat_var,ct_srv_src,"min-max normalize to [0,1] — traffic pattern variability proxy (connection diversity)",continuous,"[0, 1]"
+UNSW-NB15,port_cat,dsport,bin 6 categories,categorical,"{0,1,2,3,4,5}"
+UNSW-NB15,size_cat,byte_rate (derived),bin 4 categories,categorical,"{0,1,2,3}"
+UNSW-NB15,protocol,proto,"{tcp:0,udp:1,icmp:2}",categorical,"{0,1,2}"
+UNSW-NB15,label,label,"0=benign,1=attack",binary,"{0,1}"
+UNSW-NB15,attack_cat,attack_cat,string category,string,varies
+CSE-CIC-IDS-2018,flow_duration,Flow Duration,Flow Duration/1000 (us to ms),continuous,"[0, inf)"
+CSE-CIC-IDS-2018,pkt_rate,Flow Packets/s,as-is,continuous,"[0, inf)"
+CSE-CIC-IDS-2018,byte_rate,Flow Bytes/s,as-is,continuous,"[0, inf)"
+CSE-CIC-IDS-2018,traffic_pat_var,Fwd IAT Std,"quantile-normalize (1st-99th pctile) to [0,1] — traffic pattern variability proxy (timing variability)",continuous,"[0, 1]"
+CSE-CIC-IDS-2018,port_cat,Dst Port,bin 6 categories,categorical,"{0,1,2,3,4,5}"
+CSE-CIC-IDS-2018,size_cat,Flow Bytes/s * dur,bin 4 categories,categorical,"{0,1,2,3}"
+CSE-CIC-IDS-2018,protocol,Protocol,"{6:0,17:1,1:2}",categorical,"{0,1,2}"
+CSE-CIC-IDS-2018,label,Label,"0=benign,1=attack",binary,"{0,1}"
+CSE-CIC-IDS-2018,attack_cat,Label,string category,string,varies
+CIC-IDS2017,flow_duration,Flow Duration,Flow Duration/1000 (us to ms),continuous,"[0, inf)"
+CIC-IDS2017,pkt_rate,Flow Packets/s,as-is,continuous,"[0, inf)"
+CIC-IDS2017,byte_rate,Flow Bytes/s,as-is,continuous,"[0, inf)"
+CIC-IDS2017,traffic_pat_var,Fwd IAT Std,"quantile-normalize (1st-99th pctile) to [0,1] — traffic pattern variability proxy (timing variability)",continuous,"[0, 1]"
+CIC-IDS2017,port_cat,Dst Port,bin 6 categories,categorical,"{0,1,2,3,4,5}"
+CIC-IDS2017,size_cat,Flow Bytes/s * dur,bin 4 categories,categorical,"{0,1,2,3}"
+CIC-IDS2017,protocol,Protocol,"{6:0,17:1,1:2}",categorical,"{0,1,2}"
+CIC-IDS2017,label,Label,"0=benign,1=attack",binary,"{0,1}"
+CIC-IDS2017,attack_cat,Label,string category,string,varies

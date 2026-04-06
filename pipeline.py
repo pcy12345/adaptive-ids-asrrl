@@ -9,7 +9,7 @@ class WindowLog:
     window_index: int
     end_row_index: int
     buffer_size: int
-    mean_entropy: float
+    mean_traffic_pat_var: float
     byte_variance: float
     confidence: float
     action: str
@@ -17,7 +17,7 @@ class WindowLog:
     final_label: int
     label_changed: bool
     buffer_changed: bool
-    entropy_delta: float
+    traffic_pat_var_delta: float
     variance_delta: float
 
 def _print_component_io(cfg, ingestion_row, window_df, X_scaled_df, sym_preds, meta):
@@ -55,7 +55,7 @@ def run_ids(df, cfg):
 
     logs: List[WindowLog] = []
     prev_label: Optional[int] = None
-    prev_entropy: Optional[float] = None
+    prev_tpv: Optional[float] = None
     prev_var: Optional[float] = None
 
     window_index = -1
@@ -79,7 +79,7 @@ def run_ids(df, cfg):
         sym_preds, confidence = sym.infer(window_df)
 
         # [5] RL action (buffer/threshold control)
-        action = rl.act(stats.mean_entropy, stats.byte_variance)
+        action = rl.act(stats.mean_traffic_pat_var, stats.byte_variance)
         before_size = buffer.size
         buffer.resize(action, window_index)
         buffer_changed = (before_size != buffer.size)
@@ -94,14 +94,14 @@ def run_ids(df, cfg):
         final_label = 1 if confidence >= threshold else 0
         label_changed = (prev_label is not None and final_label != prev_label)
 
-        entropy_delta = (stats.mean_entropy - prev_entropy) if prev_entropy is not None else 0.0
+        traffic_pat_var_delta = (stats.mean_traffic_pat_var - prev_tpv) if prev_tpv is not None else 0.0
         var_delta = (stats.byte_variance - prev_var) if prev_var is not None else 0.0
 
         logs.append(WindowLog(
             window_index=window_index,
             end_row_index=i,
             buffer_size=buffer.size,
-            mean_entropy=stats.mean_entropy,
+            mean_traffic_pat_var=stats.mean_traffic_pat_var,
             byte_variance=stats.byte_variance,
             confidence=confidence,
             action=action,
@@ -109,19 +109,19 @@ def run_ids(df, cfg):
             final_label=final_label,
             label_changed=label_changed,
             buffer_changed=buffer_changed,
-            entropy_delta=entropy_delta,
+            traffic_pat_var_delta=traffic_pat_var_delta,
             variance_delta=var_delta,
         ))
 
         prev_label = final_label
-        prev_entropy = stats.mean_entropy
+        prev_tpv = stats.mean_traffic_pat_var
         prev_var = stats.byte_variance
 
         # Printing
         if window_index % cfg.PRINT_EVERY == 0:
             print(f"[Window {window_index} @ row {i}] "
                   f"buf={buffer.size} "
-                  f"entropy={stats.mean_entropy:.3f} (Δ{entropy_delta:+.3f}) "
+                  f"traffic_pat_var={stats.mean_traffic_pat_var:.3f} (Δ{traffic_pat_var_delta:+.3f}) "
                   f"var={stats.byte_variance:.2e} (Δ{var_delta:+.2e}) "
                   f"conf={confidence:.2f} "
                   f"action={action} "
@@ -144,14 +144,14 @@ def run_ids(df, cfg):
     buf_changes = sum(1 for w in logs if w.buffer_changed)
     label_changes = sum(1 for w in logs if w.label_changed)
 
-    # "Fluctuations" proxy: large deltas in entropy/variance
-    ent_abs = np.array([abs(w.entropy_delta) for w in logs[1:]]) if total_windows > 1 else np.array([0.0])
+    # "Fluctuations" proxy: large deltas in traffic_pat_var/variance
+    ent_abs = np.array([abs(w.traffic_pat_var_delta) for w in logs[1:]]) if total_windows > 1 else np.array([0.0])
     var_abs = np.array([abs(w.variance_delta) for w in logs[1:]]) if total_windows > 1 else np.array([0.0])
 
     ent_thresh = float(np.percentile(ent_abs, 90)) if ent_abs.size else 0.0
     var_thresh = float(np.percentile(var_abs, 90)) if var_abs.size else 0.0
 
-    major_ent = sum(1 for w in logs[1:] if abs(w.entropy_delta) >= ent_thresh and ent_thresh > 0)
+    major_ent = sum(1 for w in logs[1:] if abs(w.traffic_pat_var_delta) >= ent_thresh and ent_thresh > 0)
     major_var = sum(1 for w in logs[1:] if abs(w.variance_delta) >= var_thresh and var_thresh > 0)
 
     print("\n==================== SUMMARY ====================")
@@ -171,7 +171,7 @@ def run_ids(df, cfg):
     print(f"  label_change AND buf_change: {both} windows ({(both/max(label_changes,1))*100:.1f}% of label changes)")
 
     print("Fluctuations (window-to-window)")
-    print(f"  entropy |Δ| 90th percentile threshold : {ent_thresh:.3f} -> major events: {major_ent}")
+    print(f"  traffic_pat_var |Δ| 90th percentile threshold : {ent_thresh:.3f} -> major events: {major_ent}")
     print(f"  variance|Δ| 90th percentile threshold : {var_thresh:.2e} -> major events: {major_var}")
 
     print("Buffer size history (window_index -> buffer_size):")

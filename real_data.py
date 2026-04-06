@@ -7,13 +7,13 @@ Downloads and preprocesses real IDS benchmark datasets:
   - CIC-IDS2017
 
 Each dataset is standardised to a common schema:
-  Features: flow_duration, pkt_rate, byte_rate, entropy, port_cat, size_cat, protocol
+  Features: flow_duration, pkt_rate, byte_rate, traffic_pat_var, port_cat, size_cat, protocol
   Labels:   0=benign, 1=attack
   Multi-class: attack_cat column (string) when available
 
-NOTE on 'entropy' feature:
+NOTE on 'traffic_pat_var' feature:
   This is NOT Shannon information entropy (H = -sum p_i log p_i).
-  It is a traffic variability/diversity proxy derived from dataset-specific columns:
+  It is a traffic pattern variability proxy derived from dataset-specific columns:
     - UNSW-NB15:  ct_srv_src (service connection count), min-max normalized to [0,1].
                   Measures connection diversity from a source to a service.
     - CSE-CIC-2018 / CIC-IDS2017:  Fwd IAT Std (forward inter-arrival time std dev),
@@ -91,7 +91,7 @@ UNSW_FEATURE_MAP = {
     "dur": "flow_duration",
     "rate": "pkt_rate",
     "sbytes": "byte_rate",
-    "ct_srv_src": "entropy",   # service connection count → traffic variability proxy (NOT Shannon entropy)
+    "ct_srv_src": "traffic_pat_var",   # service connection count → traffic pattern variability proxy (NOT Shannon entropy)
 }
 
 UNSW_ATTACK_CATS = {
@@ -165,7 +165,7 @@ def _preprocess_unsw(raw_df):
     else:
         result["byte_rate"] = 0
 
-    # entropy (traffic variability proxy): use ct_srv_src (connection diversity) or sttl variation
+    # traffic_pat_var (traffic pattern variability proxy): use ct_srv_src (connection diversity) or sttl variation
     # NOT Shannon entropy — measures connection pattern diversity, min-max normalized to [0,1]
     for col in ["ct_srv_src", "sttl", "sjit"]:
         if col in df.columns:
@@ -173,12 +173,12 @@ def _preprocess_unsw(raw_df):
             # Normalise to [0, 1] range
             vmin, vmax = vals.min(), vals.max()
             if vmax > vmin:
-                result["entropy"] = (vals - vmin) / (vmax - vmin)
+                result["traffic_pat_var"] = (vals - vmin) / (vmax - vmin)
             else:
-                result["entropy"] = 0.5
+                result["traffic_pat_var"] = 0.5
             break
     else:
-        result["entropy"] = np.random.uniform(0, 1, len(df))
+        result["traffic_pat_var"] = np.random.uniform(0, 1, len(df))
 
     # port_cat: bin destination port
     if "dsport" in df.columns:
@@ -292,19 +292,19 @@ def _preprocess_cic(raw_df, dataset_name="CSE"):
     else:
         result["byte_rate"] = 0
 
-    # entropy (traffic variability proxy): use Fwd IAT Std (timing variability) or pkt length variance
+    # traffic_pat_var (traffic pattern variability proxy): use Fwd IAT Std (timing variability) or pkt length variance
     # NOT Shannon entropy — measures forward inter-arrival time irregularity, quantile-normalized to [0,1]
     for col in ["Fwd IAT Std", "fwd_iat_std", "Flow IAT Std"]:
         if col in df.columns:
             vals = pd.to_numeric(df[col], errors="coerce").fillna(0)
             vmin, vmax = vals.quantile(0.01), vals.quantile(0.99)
             if vmax > vmin:
-                result["entropy"] = ((vals - vmin) / (vmax - vmin)).clip(0, 1)
+                result["traffic_pat_var"] = ((vals - vmin) / (vmax - vmin)).clip(0, 1)
             else:
-                result["entropy"] = 0.5
+                result["traffic_pat_var"] = 0.5
             break
     else:
-        result["entropy"] = np.random.uniform(0, 1, len(df))
+        result["traffic_pat_var"] = np.random.uniform(0, 1, len(df))
 
     # port_cat
     for col in ["Dst Port", "Destination Port", "dst_port"]:
@@ -432,7 +432,7 @@ def _generate_enhanced_synthetic(n, ds, seed=42, multi_class=False):
         "flow_duration": _col(dur_n, dur_a),
         "pkt_rate": _col(pr_n, pr_a),
         "byte_rate": _col(br_n, br_a),
-        "entropy": _col(en_n, en_a),
+        "traffic_pat_var": _col(en_n, en_a),
         "port_cat": rng.integers(0, 6, n),
         "size_cat": rng.integers(0, 4, n),
         "protocol": rng.integers(0, 3, n),
@@ -457,7 +457,7 @@ def _generate_enhanced_synthetic(n, ds, seed=42, multi_class=False):
             if mask.sum() > 0:
                 # Shift features slightly per attack type
                 shift = (i + 1) * 0.05
-                df.loc[mask, "entropy"] += rng.normal(shift, 0.05, mask.sum())
+                df.loc[mask, "traffic_pat_var"] += rng.normal(shift, 0.05, mask.sum())
                 df.loc[mask, "pkt_rate"] *= (1 + shift * rng.normal(0, 0.3, mask.sum()))
 
     df["attack_cat"] = attack_cats
@@ -487,7 +487,7 @@ def load_dataset(ds, n=50000, seed=42):
     Returns
     -------
     pd.DataFrame
-        Columns: flow_duration, pkt_rate, byte_rate, entropy (variability proxy), port_cat,
+        Columns: flow_duration, pkt_rate, byte_rate, traffic_pat_var (variability proxy), port_cat,
                  size_cat, protocol, label, attack_cat
     str
         "real" or "synthetic" indicating data source
