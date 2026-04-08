@@ -1,0 +1,36 @@
+name: Upload IDS Datasets to Hugging Face
+
+on:
+  workflow_dispatch:
+    inputs:
+      datasets:
+        description: 'Datasets to upload (space-separated: UNSW CSE CIC2017)'
+        required: true
+        default: 'UNSW CSE CIC2017'
+        type: string
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install huggingface_hub requests pandas
+
+      - name: Download and upload datasets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python upload_datasets_to_hf.py \
+            --token "$HF_TOKEN" \
+            --username pcy12345BSU \
+            --datasets ${{ github.event.inputs.datasets }}
