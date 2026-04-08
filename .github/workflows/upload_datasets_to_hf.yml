@@ -8,6 +8,10 @@ on:
         required: true
         default: 'UNSW CSE CIC2017'
         type: string
+      hf_token:
+        description: 'Hugging Face API token (if not using repo secret)'
+        required: false
+        type: string
 
 jobs:
   upload:
@@ -28,7 +32,7 @@ jobs:
 
       - name: Download and upload datasets
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ inputs.hf_token || secrets.HF_TOKEN }}
         run: |
           python upload_datasets_to_hf.py \
             --token "$HF_TOKEN" \
