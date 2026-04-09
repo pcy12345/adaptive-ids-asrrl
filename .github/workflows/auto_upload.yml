@@ -7,6 +7,9 @@ on:
     paths:
       - '.github/workflows/auto_upload.yml'
 
+permissions:
+  contents: write
+
 jobs:
   upload:
     runs-on: ubuntu-latest
