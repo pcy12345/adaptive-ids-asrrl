@@ -22,93 +22,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install huggingface_hub requests pandas kaggle
+        run: pip install huggingface_hub requests
 
-      - name: Download CIC-IDS 2017
-        run: |
-          set -e
-          mkdir -p data/cic_ids2017
-          cd data/cic_ids2017
-
-          echo "=== Source 1: Official UNB (20 min timeout) ==="
-          curl -v -L --retry 3 --retry-delay 15 --retry-max-time 1200 \
-            --connect-timeout 60 --max-time 1200 \
-            -o MachineLearningCSV.zip \
-            "https://iscxdownloads.cs.unb.ca/iscxdownloads/CIC-IDS-2017/MachineLearningCSV.zip" 2>&1 || true
-
-          if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 10000000 ]; then
-            echo "=== UNB download OK, extracting ==="
-            unzip -o MachineLearningCSV.zip
-            find . -name "*.csv" -not -path "./*.csv" -exec mv {} . \;
-          else
-            rm -f MachineLearningCSV.zip
-            echo "=== Source 1 failed ==="
-
-            echo ""
-            echo "=== Source 2: UNB alternate URL ==="
-            curl -v -L --retry 3 --retry-delay 15 \
-              --connect-timeout 60 --max-time 1200 \
-              -o MachineLearningCSV.zip \
-              "https://www.unb.ca/cic/datasets/ids-2017/MachineLearningCSV.zip" 2>&1 || true
-
-            if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 10000000 ]; then
-              echo "=== Alternate UNB OK, extracting ==="
-              unzip -o MachineLearningCSV.zip
-              find . -name "*.csv" -not -path "./*.csv" -exec mv {} . \;
-            else
-              rm -f MachineLearningCSV.zip
-              echo "=== Source 2 failed ==="
-
-              echo ""
-              echo "=== Source 3: Zenodo ==="
-              curl -v -L --retry 3 --retry-delay 10 \
-                --connect-timeout 60 --max-time 1200 \
-                -o MachineLearningCSV.zip \
-                "https://zenodo.org/records/12729592/files/MachineLearningCSV.zip?download=1" 2>&1 || true
-
-              if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 10000000 ]; then
-                echo "=== Zenodo OK, extracting ==="
-                unzip -o MachineLearningCSV.zip
-                find . -name "*.csv" -not -path "./*.csv" -exec mv {} . \;
-              else
-                rm -f MachineLearningCSV.zip
-                echo "=== Source 3 failed ==="
-
-                echo ""
-                echo "=== Source 4: Existing HuggingFace datasets ==="
-                pip install datasets
-                python3 -c "
-from datasets import load_dataset
-import os
-try:
-    # Try loading from an existing HF dataset
-    ds = load_dataset('eugenesiow/CIC-IDS-2017', split='train', trust_remote_code=True)
-    ds.to_csv('CIC-IDS-2017-combined.csv')
-    print('Loaded from HuggingFace eugenesiow/CIC-IDS-2017')
-except Exception as e1:
-    print(f'eugenesiow failed: {e1}')
-    try:
-        ds = load_dataset('akabircs/CIC-IDS2017', split='train', trust_remote_code=True)
-        ds.to_csv('CIC-IDS-2017-combined.csv')
-        print('Loaded from HuggingFace akabircs/CIC-IDS2017')
-    except Exception as e2:
-        print(f'akabircs failed: {e2}')
-                " || true
-              fi
-            fi
-          fi
-
-          echo ""
-          echo "=== Final CSV files ==="
-          ls -lh *.csv 2>/dev/null || echo "NO CSV FILES FOUND"
-          csv_count=$(ls *.csv 2>/dev/null | wc -l)
-          echo "Total CSV files: $csv_count"
-          if [ "$csv_count" -eq 0 ]; then
-            echo "ERROR: No CSV files downloaded from any source!"
-            exit 1
-          fi
-
-      - name: Upload CIC-IDS 2017 to HuggingFace
+      - name: Find and duplicate CIC-IDS 2017 dataset
         env:
           P1: "hf_KJpqhgz"
           P2: "CetAbKIezj"
@@ -116,8 +32,53 @@ except Exception as e1:
           P4: "tquGWLC"
         run: |
           export HF_TOKEN="${P1}${P2}${P3}${P4}"
-          python upload_datasets_to_hf.py \
-            --token "$HF_TOKEN" \
-            --username pcy12345BSU \
-            --upload-only \
-            --datasets CIC2017
+          python3 -c "
+          import os, re
+          from huggingface_hub import HfApi, hf_hub_download, create_repo
+
+          token = os.environ['HF_TOKEN']
+          api = HfApi(token=token)
+          target_repo = 'pcy12345BSU/CIC-IDS-2017'
+
+          print('=== Searching for CIC-IDS-2017 on HuggingFace ===')
+          results = list(api.list_datasets(search='CIC-IDS-2017', sort='downloads', direction=-1, limit=20))
+          print(f'Found {len(results)} datasets:')
+          for ds in results:
+              print(f'  - {ds.id} (downloads: {ds.downloads})')
+
+          source_repos = ['eugenesiow/CIC-IDS-2017', 'akabircs/CIC-IDS2017']
+          source_repos += [ds.id for ds in results if ds.id not in source_repos]
+
+          for source_repo in source_repos[:5]:
+              print(f'\n=== Trying {source_repo} ===')
+              try:
+                  files = api.list_repo_files(repo_id=source_repo, repo_type='dataset')
+                  print(f'  Files ({len(files)}): {files[:15]}')
+                  if not files:
+                      continue
+
+                  create_repo(repo_id=target_repo, repo_type='dataset', token=token, exist_ok=True, private=False)
+
+                  uploaded = 0
+                  for f in files:
+                      if f.startswith('.'):
+                          continue
+                      print(f'  Copying: {f}')
+                      try:
+                          local = hf_hub_download(repo_id=source_repo, filename=f, repo_type='dataset', token=token)
+                          api.upload_file(path_or_fileobj=local, path_in_repo=f, repo_id=target_repo, repo_type='dataset', token=token)
+                          uploaded += 1
+                          print(f'    [OK]')
+                      except Exception as e:
+                          print(f'    [FAIL] {e}')
+
+                  if uploaded > 0:
+                      print(f'\nSUCCESS: Copied {uploaded} files from {source_repo}')
+                      print(f'Dataset: https://huggingface.co/datasets/{target_repo}')
+                      break
+              except Exception as e:
+                  print(f'  Error: {e}')
+          else:
+              print('ERROR: Could not duplicate from any source!')
+              exit(1)
+          "
