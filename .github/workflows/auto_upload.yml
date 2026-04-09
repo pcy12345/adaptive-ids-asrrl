@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: pip install huggingface_hub requests
 
-      - name: Find and duplicate CIC-IDS 2017 dataset
+      - name: Duplicate CIC-IDS 2017 from HuggingFace
         env:
           P1: "hf_KJpqhgz"
           P2: "CetAbKIezj"
@@ -32,53 +32,4 @@ jobs:
           P4: "tquGWLC"
         run: |
           export HF_TOKEN="${P1}${P2}${P3}${P4}"
-          python3 -c "
-          import os, re
-          from huggingface_hub import HfApi, hf_hub_download, create_repo
-
-          token = os.environ['HF_TOKEN']
-          api = HfApi(token=token)
-          target_repo = 'pcy12345BSU/CIC-IDS-2017'
-
-          print('=== Searching for CIC-IDS-2017 on HuggingFace ===')
-          results = list(api.list_datasets(search='CIC-IDS-2017', sort='downloads', direction=-1, limit=20))
-          print(f'Found {len(results)} datasets:')
-          for ds in results:
-              print(f'  - {ds.id} (downloads: {ds.downloads})')
-
-          source_repos = ['eugenesiow/CIC-IDS-2017', 'akabircs/CIC-IDS2017']
-          source_repos += [ds.id for ds in results if ds.id not in source_repos]
-
-          for source_repo in source_repos[:5]:
-              print(f'\n=== Trying {source_repo} ===')
-              try:
-                  files = api.list_repo_files(repo_id=source_repo, repo_type='dataset')
-                  print(f'  Files ({len(files)}): {files[:15]}')
-                  if not files:
-                      continue
-
-                  create_repo(repo_id=target_repo, repo_type='dataset', token=token, exist_ok=True, private=False)
-
-                  uploaded = 0
-                  for f in files:
-                      if f.startswith('.'):
-                          continue
-                      print(f'  Copying: {f}')
-                      try:
-                          local = hf_hub_download(repo_id=source_repo, filename=f, repo_type='dataset', token=token)
-                          api.upload_file(path_or_fileobj=local, path_in_repo=f, repo_id=target_repo, repo_type='dataset', token=token)
-                          uploaded += 1
-                          print(f'    [OK]')
-                      except Exception as e:
-                          print(f'    [FAIL] {e}')
-
-                  if uploaded > 0:
-                      print(f'\nSUCCESS: Copied {uploaded} files from {source_repo}')
-                      print(f'Dataset: https://huggingface.co/datasets/{target_repo}')
-                      break
-              except Exception as e:
-                  print(f'  Error: {e}')
-          else:
-              print('ERROR: Could not duplicate from any source!')
-              exit(1)
-          "
+          python duplicate_cic2017.py
