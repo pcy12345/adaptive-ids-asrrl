@@ -1,0 +1,206 @@
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 761, in hf_raise_for_status
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '404 Not Found' for url 'https://huggingface.co/api/datasets/eugenesiow/CIC-IDS-2017/duplicate'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/work/adaptive-ids-asrrl/adaptive-ids-asrrl/duplicate_cic2017.py", line 41, in main
+    result = api.duplicate_repo(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_deprecation.py", line 101, in inner_f
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 88, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 7981, in duplicate_repo
+    hf_raise_for_status(r)
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 847, in hf_raise_for_status
+    raise repo_err from e
+huggingface_hub.errors.RepositoryNotFoundError: 404 Client Error. (Request ID: Root=1-69d72766-580c5ff141013ca511096cf5;15b98ab7-758e-453f-90ef-f02fa1d29203)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/eugenesiow/CIC-IDS-2017/duplicate.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 761, in hf_raise_for_status
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '404 Not Found' for url 'https://huggingface.co/api/datasets/akabircs/CIC-IDS2017/duplicate'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/work/adaptive-ids-asrrl/adaptive-ids-asrrl/duplicate_cic2017.py", line 41, in main
+    result = api.duplicate_repo(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_deprecation.py", line 101, in inner_f
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 88, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 7981, in duplicate_repo
+    hf_raise_for_status(r)
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 847, in hf_raise_for_status
+    raise repo_err from e
+huggingface_hub.errors.RepositoryNotFoundError: 404 Client Error. (Request ID: Root=1-69d72766-5864d1d345467c694fc23429;3914a90f-6b31-4c94-a125-4f951df00848)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/akabircs/CIC-IDS2017/duplicate.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 761, in hf_raise_for_status
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '404 Not Found' for url 'https://huggingface.co/api/datasets/eugenesiow/CIC-IDS-2017/tree/main?recursive=true&expand=false'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/work/adaptive-ids-asrrl/adaptive-ids-asrrl/duplicate_cic2017.py", line 60, in main
+    files = api.list_repo_files(repo_id=source, repo_type="dataset")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 88, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 3467, in list_repo_files
+    return [
+           ^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 3467, in <listcomp>
+    return [
+           ^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 3604, in list_repo_tree
+    for path_info in paginate(path=tree_url, headers=headers, params={"recursive": recursive, "expand": expand}):
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_pagination.py", line 36, in paginate
+    hf_raise_for_status(r)
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 847, in hf_raise_for_status
+    raise repo_err from e
+huggingface_hub.errors.RepositoryNotFoundError: 404 Client Error. (Request ID: Root=1-69d72766-106ea6db0e28dd701ad8606b;0d65f1f5-3a61-49c6-9606-f3fe63d3bf80)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/eugenesiow/CIC-IDS-2017/tree/main?recursive=true&expand=false.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 761, in hf_raise_for_status
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '404 Not Found' for url 'https://huggingface.co/api/datasets/akabircs/CIC-IDS2017/tree/main?recursive=true&expand=false'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/work/adaptive-ids-asrrl/adaptive-ids-asrrl/duplicate_cic2017.py", line 60, in main
+    files = api.list_repo_files(repo_id=source, repo_type="dataset")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 88, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 3467, in list_repo_files
+    return [
+           ^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 3467, in <listcomp>
+    return [
+           ^
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/hf_api.py", line 3604, in list_repo_tree
+    for path_info in paginate(path=tree_url, headers=headers, params={"recursive": recursive, "expand": expand}):
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_pagination.py", line 36, in paginate
+    hf_raise_for_status(r)
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 847, in hf_raise_for_status
+    raise repo_err from e
+huggingface_hub.errors.RepositoryNotFoundError: 404 Client Error. (Request ID: Root=1-69d72766-213cc86a6e7917197a844f31;631bb604-49dc-4e25-a83d-3c08f2293f32)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/akabircs/CIC-IDS2017/tree/main?recursive=true&expand=false.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+Token length: 37
+Token prefix: hf_KJ...
+
+=== Step 1: Verify authentication ===
+Authenticated as: {'type': 'user', 'id': '65d5b5aa693d9451ce7749b7', 'name': 'pcy12345BSU', 'fullname': 'Palmer Young', 'isPro': True, 'avatarUrl': '/avatars/112302c69704d8c2ec24730f11255a3f.svg', 'orgs': [], 'auth': {'type': 'access_token', 'accessToken': {'displayName': 'TokenForClaude', 'role': 'fineGrained', 'createdAt': '2026-04-08T23:39:23.743Z', 'fineGrained': {'canReadGatedRepos': False, 'global': [], 'scoped': [{'entity': {'_id': '65d5b5aa693d9451ce7749b7', 'type': 'user', 'name': 'pcy12345BSU'}, 'permissions': ['repo.access.read', 'repo.content.read', 'repo.write']}]}}}}
+
+=== Step 2: Try duplicate_repo ===
+
+Trying to duplicate eugenesiow/CIC-IDS-2017...
+  duplicate_repo failed: 404 Client Error. (Request ID: Root=1-69d72766-580c5ff141013ca511096cf5;15b98ab7-758e-453f-90ef-f02fa1d29203)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/eugenesiow/CIC-IDS-2017/duplicate.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+
+Trying to duplicate akabircs/CIC-IDS2017...
+  duplicate_repo failed: 404 Client Error. (Request ID: Root=1-69d72766-5864d1d345467c694fc23429;3914a90f-6b31-4c94-a125-4f951df00848)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/akabircs/CIC-IDS2017/duplicate.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+
+=== Step 3: Manual file copy fallback ===
+
+Trying manual copy from eugenesiow/CIC-IDS-2017...
+  list_repo_files failed for eugenesiow/CIC-IDS-2017: 404 Client Error. (Request ID: Root=1-69d72766-106ea6db0e28dd701ad8606b;0d65f1f5-3a61-49c6-9606-f3fe63d3bf80)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/eugenesiow/CIC-IDS-2017/tree/main?recursive=true&expand=false.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+
+Trying manual copy from akabircs/CIC-IDS2017...
+  list_repo_files failed for akabircs/CIC-IDS2017: 404 Client Error. (Request ID: Root=1-69d72766-213cc86a6e7917197a844f31;631bb604-49dc-4e25-a83d-3c08f2293f32)
+
+Repository Not Found for url: https://huggingface.co/api/datasets/akabircs/CIC-IDS2017/tree/main?recursive=true&expand=false.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated and your token has the required permissions.
+For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+
+=== Step 4: Search for any CIC-IDS 2017 dataset ===
+Found 30 datasets matching 'CIC-IDS':
+  - rdpahalavan/CIC-IDS2017 (downloads: 1366)
+  - Mireu-Lab/CIC-IDS (downloads: 47)
+  - c01dsnap/CIC-IDS2017 (downloads: 804)
+  - c01dsnap/CIC-IDS2018 (downloads: 65)
+  - chathuru/cicids2018 (downloads: 12)
+  - yasirchemmakh/Suricata_CICIDS_2017 (downloads: 4)
+  - yasirchemmakh/Cicids2017_Suricata_Logs (downloads: 16)
+  - bvk/CICIDS-2017 (downloads: 324)
+  - bvk/CICIDS-2017-plus (downloads: 58)
+  - yasirchemmakh/Cicids2018_Suricata_Logs (downloads: 19)
+  - auliraff/CIC-IDS-Collection (downloads: 30)
+  - NGCong/CI-CIDS2017 (downloads: 4)
+  - abluva/CSE-CIC-IDS2018-V2 (downloads: 16)
+  - abluva/CIC-IDS-2017-V2 (downloads: 4)
+  - sukengine/CIC-IDS2017-Full (downloads: 4)
+  - sonnh-tech1/cic-ids-2017 (downloads: 10)
+  - Najet-hamdi/CIC-IDS2018 (downloads: 4)
+  - gyawalishiva/cic-ids-2017-textual (downloads: 3)
+  - fikrimulyana/CIC-IDS-2017 (downloads: 3)
+  - gyawalishiva/cic-ids-2018-alldata-textual (downloads: 16)
+  - Ben11304/Cic-Ids2023-DiFL (downloads: 2)
+  - Ben11304/Cic-Ids2017-DiFL (downloads: 2)
+  - makekali/CIC-IDS-2017 (downloads: 4)
+  - petal0/Augmented_CIC-IDS2017 (downloads: 3)
+  - desonglll/CIC-IDS-2017-V2 (downloads: 5)
+  - fycq22/CICIDS-171819 (downloads: 17)
+  - rashid-rao/CICIDS2017-Images-spectrograms (downloads: 5)
+  - maruuf/CIC-IDS2017 (downloads: 3)
+  - maryamElsaket/cicids (downloads: 4)
+  - OlaEid/cicids-dataset-cleaned (downloads: 6)
+
+ERROR: Could not duplicate from any source!
