@@ -22,62 +22,79 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install huggingface_hub requests pandas
+        run: pip install huggingface_hub requests pandas kaggle
 
-      - name: Download CIC-IDS 2017 via curl with retries
+      - name: Download CIC-IDS 2017
         run: |
+          set -e
           mkdir -p data/cic_ids2017
           cd data/cic_ids2017
 
-          echo "=== Attempting official UNB source ==="
-          curl -L --retry 5 --retry-delay 10 --retry-max-time 600 \
-            --connect-timeout 30 --max-time 600 \
+          echo "=== Source 1: Official UNB (20 min timeout) ==="
+          curl -v -L --retry 3 --retry-delay 15 --retry-max-time 1200 \
+            --connect-timeout 60 --max-time 1200 \
             -o MachineLearningCSV.zip \
-            "https://iscxdownloads.cs.unb.ca/iscxdownloads/CIC-IDS-2017/MachineLearningCSV.zip" || true
+            "https://iscxdownloads.cs.unb.ca/iscxdownloads/CIC-IDS-2017/MachineLearningCSV.zip" 2>&1 || true
 
-          if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 1000000 ]; then
-            echo "Download successful, extracting..."
+          if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 10000000 ]; then
+            echo "=== UNB download OK, extracting ==="
             unzip -o MachineLearningCSV.zip
             find . -name "*.csv" -not -path "./*.csv" -exec mv {} . \;
-            ls -lh *.csv
           else
-            echo "=== Official source failed, trying alternative mirrors ==="
             rm -f MachineLearningCSV.zip
+            echo "=== Source 1 failed ==="
 
-            # Try Kaggle public dataset mirror
-            echo "Trying mirror 1..."
-            curl -L --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 600 \
+            echo ""
+            echo "=== Source 2: UNB alternate URL ==="
+            curl -v -L --retry 3 --retry-delay 15 \
+              --connect-timeout 60 --max-time 1200 \
               -o MachineLearningCSV.zip \
-              "https://zenodo.org/records/12729592/files/MachineLearningCSV.zip?download=1" || true
+              "https://www.unb.ca/cic/datasets/ids-2017/MachineLearningCSV.zip" 2>&1 || true
 
-            if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 1000000 ]; then
-              echo "Mirror download successful, extracting..."
+            if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 10000000 ]; then
+              echo "=== Alternate UNB OK, extracting ==="
               unzip -o MachineLearningCSV.zip
               find . -name "*.csv" -not -path "./*.csv" -exec mv {} . \;
-              ls -lh *.csv
             else
-              echo "=== Trying individual file downloads from GitHub ==="
               rm -f MachineLearningCSV.zip
+              echo "=== Source 2 failed ==="
 
-              # Try smaller CSV files that fit in GitHub
-              for f in \
-                "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv" \
-                "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv" \
-                "Friday-WorkingHours-Morning.pcap_ISCX.csv" \
-                "Monday-WorkingHours.pcap_ISCX.csv" \
-                "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv" \
-                "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv" \
-                "Tuesday-WorkingHours.pcap_ISCX.csv" \
-                "Wednesday-workingHours.pcap_ISCX.csv"; do
-                echo "Downloading $f ..."
-                curl -L --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 300 \
-                  -o "$f" \
-                  "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/$f" || true
-                if [ -f "$f" ] && [ $(stat -c%s "$f") -lt 1000 ]; then
-                  echo "  File too small, removing..."
-                  rm -f "$f"
-                fi
-              done
+              echo ""
+              echo "=== Source 3: Zenodo ==="
+              curl -v -L --retry 3 --retry-delay 10 \
+                --connect-timeout 60 --max-time 1200 \
+                -o MachineLearningCSV.zip \
+                "https://zenodo.org/records/12729592/files/MachineLearningCSV.zip?download=1" 2>&1 || true
+
+              if [ -f MachineLearningCSV.zip ] && [ $(stat -c%s MachineLearningCSV.zip) -gt 10000000 ]; then
+                echo "=== Zenodo OK, extracting ==="
+                unzip -o MachineLearningCSV.zip
+                find . -name "*.csv" -not -path "./*.csv" -exec mv {} . \;
+              else
+                rm -f MachineLearningCSV.zip
+                echo "=== Source 3 failed ==="
+
+                echo ""
+                echo "=== Source 4: Existing HuggingFace datasets ==="
+                pip install datasets
+                python3 -c "
+from datasets import load_dataset
+import os
+try:
+    # Try loading from an existing HF dataset
+    ds = load_dataset('eugenesiow/CIC-IDS-2017', split='train', trust_remote_code=True)
+    ds.to_csv('CIC-IDS-2017-combined.csv')
+    print('Loaded from HuggingFace eugenesiow/CIC-IDS-2017')
+except Exception as e1:
+    print(f'eugenesiow failed: {e1}')
+    try:
+        ds = load_dataset('akabircs/CIC-IDS2017', split='train', trust_remote_code=True)
+        ds.to_csv('CIC-IDS-2017-combined.csv')
+        print('Loaded from HuggingFace akabircs/CIC-IDS2017')
+    except Exception as e2:
+        print(f'akabircs failed: {e2}')
+                " || true
+              fi
             fi
           fi
 
@@ -87,7 +104,7 @@ jobs:
           csv_count=$(ls *.csv 2>/dev/null | wc -l)
           echo "Total CSV files: $csv_count"
           if [ "$csv_count" -eq 0 ]; then
-            echo "ERROR: No CSV files downloaded!"
+            echo "ERROR: No CSV files downloaded from any source!"
             exit 1
           fi
 
