@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: pip install huggingface_hub requests
 
-      - name: Duplicate CIC-IDS 2017 from HuggingFace
+      - name: Duplicate CIC-IDS 2017 from existing HuggingFace dataset
         env:
           P1: "hf_KJpqhgz"
           P2: "CetAbKIezj"
