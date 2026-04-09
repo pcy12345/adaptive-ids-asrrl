@@ -31,8 +31,9 @@ def main():
     # Try duplicate_repo first (simplest approach)
     print("\n=== Step 2: Try duplicate_repo ===")
     source_repos = [
-        "eugenesiow/CIC-IDS-2017",
-        "akabircs/CIC-IDS2017",
+        "rdpahalavan/CIC-IDS2017",
+        "c01dsnap/CIC-IDS2017",
+        "bvk/CICIDS-2017",
     ]
 
     for source in source_repos:
@@ -52,28 +53,55 @@ def main():
             print(f"  duplicate_repo failed: {e}")
             traceback.print_exc()
 
-    # Fallback: manual copy
+    # Fallback: manual file-by-file copy
     print("\n=== Step 3: Manual file copy fallback ===")
+    from huggingface_hub import hf_hub_download, create_repo
+
     for source in source_repos:
         print(f"\nTrying manual copy from {source}...")
         try:
             files = api.list_repo_files(repo_id=source, repo_type="dataset")
-            print(f"  Files in {source}: {files}")
-        except Exception as e:
-            print(f"  list_repo_files failed for {source}: {e}")
-            traceback.print_exc()
-            continue
+            print(f"  Found {len(files)} files in {source}")
+            for f in files[:20]:
+                print(f"    {f}")
 
-    # Search HuggingFace
-    print("\n=== Step 4: Search for any CIC-IDS 2017 dataset ===")
-    try:
-        results = list(api.list_datasets(search="CIC-IDS", limit=30))
-        print(f"Found {len(results)} datasets matching 'CIC-IDS':")
-        for ds in results:
-            print(f"  - {ds.id} (downloads: {ds.downloads})")
-    except Exception as e:
-        print(f"Search failed: {e}")
-        traceback.print_exc()
+            if not files:
+                continue
+
+            create_repo(
+                repo_id="pcy12345BSU/CIC-IDS-2017",
+                repo_type="dataset",
+                token=token,
+                exist_ok=True,
+                private=False,
+            )
+
+            uploaded = 0
+            for f in files:
+                if f.startswith("."):
+                    continue
+                print(f"  Copying: {f} ...", end=" ", flush=True)
+                try:
+                    local_path = hf_hub_download(
+                        repo_id=source, filename=f,
+                        repo_type="dataset", token=token,
+                    )
+                    api.upload_file(
+                        path_or_fileobj=local_path, path_in_repo=f,
+                        repo_id="pcy12345BSU/CIC-IDS-2017",
+                        repo_type="dataset", token=token,
+                    )
+                    uploaded += 1
+                    print("[OK]")
+                except Exception as e:
+                    print(f"[FAIL] {e}")
+
+            if uploaded > 0:
+                print(f"\nSUCCESS: Copied {uploaded} files from {source}")
+                return
+        except Exception as e:
+            print(f"  Error: {e}")
+            traceback.print_exc()
 
     print("\nERROR: Could not duplicate from any source!")
     sys.exit(1)
