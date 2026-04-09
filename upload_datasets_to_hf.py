@@ -64,6 +64,16 @@ DATASET_CONFIGS = {
         "sources": {
             "official": "https://iscxdownloads.cs.unb.ca/iscxdownloads/CIC-IDS-2017/MachineLearningCSV.zip",
         },
+        "individual_csvs": [
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Friday-WorkingHours-Morning.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Monday-WorkingHours.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Tuesday-WorkingHours.pcap_ISCX.csv",
+            "https://raw.githubusercontent.com/Mamcose/CIC-IDS-2017/main/MachineLearningCVE/Wednesday-workingHours.pcap_ISCX.csv",
+        ],
         "local_dir": os.path.join(DATA_DIR, "cic_ids2017"),
     },
 }
@@ -260,7 +270,7 @@ def download_cic_2017():
         print(f"  Found {len(existing)} CSV file(s) - skipping download")
         return True
 
-    # Try official source
+    # Try official source (zip)
     url = cfg["sources"]["official"]
     zip_path = os.path.join(local_dir, "MachineLearningCSV.zip")
 
@@ -282,6 +292,22 @@ def download_cic_2017():
             return True
         except Exception as e:
             print(f"  [FAIL] Extraction failed: {e}")
+
+    # Fallback: download individual CSVs from GitHub mirror
+    individual_csvs = cfg.get("individual_csvs", [])
+    if individual_csvs:
+        print("  Official source failed. Trying GitHub mirror (individual CSVs)...")
+        success_count = 0
+        for csv_url in individual_csvs:
+            filename = csv_url.split("/")[-1]
+            dest = os.path.join(local_dir, filename)
+            if download_file(csv_url, dest, timeout=300):
+                success_count += 1
+            else:
+                print(f"  [WARN] Failed: {filename}")
+        print(f"\n  Downloaded {success_count}/{len(individual_csvs)} CIC-IDS 2017 files")
+        if success_count > 0:
+            return True
 
     print("  [WARN] Could not download CIC-IDS 2017 automatically.")
     print("         Please download the MachineLearningCSV.zip from:")
