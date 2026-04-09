@@ -32,4 +32,15 @@ jobs:
           P4: "tquGWLC"
         run: |
           export HF_TOKEN="${P1}${P2}${P3}${P4}"
-          python duplicate_cic2017.py
+          python duplicate_cic2017.py 2>&1 | tee /tmp/debug_output.txt || true
+          echo "--- Exit code: $? ---"
+
+      - name: Save debug output
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          cp /tmp/debug_output.txt debug_output.txt 2>/dev/null || echo "No debug output" > debug_output.txt
+          git add debug_output.txt
+          git commit -m "Debug output from CIC-IDS 2017 workflow" || true
+          git push || true
